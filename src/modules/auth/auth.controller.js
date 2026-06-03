@@ -1,5 +1,5 @@
-const catchAsync = require("../utils/catchAsync.js");
-const sendResponse = require("../utils/response.util.js");
+const catchAsync = require("../../utils/catchAsync.js");
+const sendResponse = require("../../utils/response.util.js");
 const { registerUser, loginUser } = require("./auth.service.js");
 
 

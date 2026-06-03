@@ -1,7 +1,7 @@
-const User = require("../models/User.model.js");
-const AppError = require("../utils/AppError.js");
-const bcrypt = require("bcryptjs");
-const { generateToken } = require("../utils/jwt.util.js");
+const User = require("../../models/User.model.js");      
+const AppError = require("../../utils/AppError.js");     
+const bcrypt = require("bcryptjs");                      
+const { generateToken } = require("../../utils/jwt.util.js");
 const registerUser = async ({ userName, email, password, role, PRN }) => {
 
   const userExists = await User.findOne({ email });

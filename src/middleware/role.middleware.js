@@ -1,12 +1,11 @@
 const AppError = require("../utils/AppError");
 
-const allowOnly = (role) => {
+const allowOnly = (...roles) => {
   return (req, res, next) => {
-    if (req.user.role !== role) {                        
-      return next(new AppError("Access forbidden", 403)); 
-                                                         
-                                                          
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError("Access forbidden", 403));
     }
+
     next();
   };
 };

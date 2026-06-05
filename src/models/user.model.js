@@ -1,3 +1,4 @@
+const { ref } = require("joi");
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -27,7 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["teacher", "student"],
+      enum: ["admin","teacher", "student"],
       default: "student",
     },
     PRN: {
@@ -44,6 +45,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    classId:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"class"
+    }
   },
   {
     timestamps: true,

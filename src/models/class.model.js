@@ -1,3 +1,5 @@
+
+
 const mongoose = require("mongoose");
 
 const classSchema = new mongoose.Schema(
@@ -6,14 +8,32 @@ const classSchema = new mongoose.Schema(
       type: String,
       required: [true, "Class name required"],
       trim: true,
-      unique: true,                        
+      unique: true, 
     },
-    students: [                            
-      {                                    
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+
+
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: [true, "Department is required"],
+    },
+
+    
+    academicYear: {
+      type: String,
+      required: [true, "Academic year is required"],
+      trim: true,
+    },
+
+    
+    semester: {
+      type: Number,
+      required: [true, "Semester is required"],
+      min: 1,
+      max: 8,
+    },
+
+    
   },
   {
     timestamps: true,

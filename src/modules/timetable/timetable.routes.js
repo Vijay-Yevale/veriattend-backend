@@ -1,15 +1,22 @@
 const express = require("express");
-const {getAll, create, update, deleteEntry, deleteClass } = require("./timetable.controller");
+const { create, getByClass, getByTeachers, getSlots, update, deleteSlot } = require("./timetable.controller");
+const { createTimetableSchema,
+    getTimetableByClassSchema,
+    getTimetableByTeacherSchema,
+    slotIdSchema,
+    updateTimetableSlotSchema } = require("./timetable.validator");
 const authMiddleware = require("../../middleware/auth.middleware");
+const validate = require("../../middleware/validate.middleware");
 const allowOnly = require("../../middleware/role.middleware");
 const timetableRouter = express.Router();
 
-timetableRouter.get("/getall",authMiddleware,allowOnly("admin","teacher","student"),getAll);
+timetableRouter.use(authMiddleware);
+timetableRouter.post("/", validate(createTimetableSchema), allowOnly("HOD"), create);
+timetableRouter.get("/class/:classId", validate(getTimetableByClassSchema,"params"), allowOnly("HOD", "TEACHER", "STUDENT"), getByClass);
+timetableRouter.get("/teacher/:teacherId", validate(getTimetableByTeacherSchema,"params"), allowOnly("HOD", "TEACHER"), getByTeachers);
+timetableRouter.get("/active", allowOnly("TEACHER"), getSlots);
+timetableRouter.patch("/:slotId", validate(slotIdSchema,"params"), validate(updateTimetableSlotSchema), allowOnly("HOD"), update);
+timetableRouter.delete("/:slotId", validate(slotIdSchema,"params"), allowOnly("HOD"), deleteSlot);
 
-
-timetableRouter.post("/create",authMiddleware,allowOnly("admin"),create);
-timetableRouter.patch("/update/:timetableId",authMiddleware,allowOnly("admin"), update);
-timetableRouter.delete("/deleteEntry/:timetableId",authMiddleware,allowOnly("admin"), deleteEntry);
-timetableRouter.delete("/deleteClass/:classId",authMiddleware,allowOnly("admin") ,deleteClass);
 
 module.exports = timetableRouter;

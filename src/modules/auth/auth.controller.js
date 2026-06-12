@@ -12,13 +12,14 @@ const {
 
 const register = catchAsync(
   async (req, res) => {
+    
     const {
       userName,
       email,
       password,
       PRN,
     } = req.body;
-
+  
     const {
       user,
       token,
@@ -28,7 +29,7 @@ const register = catchAsync(
       password,
       PRN,
     });
-
+ 
     sendResponse(
       res,
       201,

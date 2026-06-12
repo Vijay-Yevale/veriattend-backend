@@ -35,7 +35,7 @@ const timetableSchema = new mongoose.Schema(
     },
 
     startTime: {
-      
+
       type: String,
       required: [true, "Start time is required"],
     },
@@ -44,6 +44,10 @@ const timetableSchema = new mongoose.Schema(
       type: String,
       required: [true, "End time is required"],
     },
+    weekType: { type: String, 
+      enum: ["all", "odd", "even"],
+       default: "all"
+       },
 
     isActive: {
       // HOD can deactivate a timetable slot without deleting it.

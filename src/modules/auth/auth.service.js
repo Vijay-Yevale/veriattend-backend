@@ -71,6 +71,7 @@ const registerUser = async ({
     await Department.findOne({
       code: deptCode,
     });
+   
 
   if (!department) {
     throw new AppError(

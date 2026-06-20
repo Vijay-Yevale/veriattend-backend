@@ -1,12 +1,10 @@
-
-
 const mongoose = require("mongoose");
 
 const teacherSubjectSchema = new mongoose.Schema(
   {
     teacherId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // role: TEACHER
+      ref: "User",
       required: [true, "Teacher is required"],
     },
 
@@ -22,8 +20,6 @@ const teacherSubjectSchema = new mongoose.Schema(
       required: [true, "Class is required"],
     },
 
-    // isActive lets HOD deactivate an assignment without deleting it.
-    // Useful for mid-semester teacher changes — history is preserved.
     isActive: {
       type: Boolean,
       default: true,
@@ -34,11 +30,10 @@ const teacherSubjectSchema = new mongoose.Schema(
   }
 );
 
-// Compound unique index: one teacher can only be assigned to
-// the same subject+class combination once.
-// Without this, HOD could accidentally create duplicate assignments.
+// One teacher per subject per class.
+// Prevents HOD from assigning two different teachers to the same subject+class.
 teacherSubjectSchema.index(
-  { teacherId: 1, subjectId: 1, classId: 1 },
+  { subjectId: 1, classId: 1 },
   { unique: true }
 );
 

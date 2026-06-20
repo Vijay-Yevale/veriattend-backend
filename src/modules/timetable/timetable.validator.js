@@ -2,7 +2,13 @@ const Joi = require("joi");
 
 const objectId = Joi.string().hex().length(24).required();
 
-const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+
+
+
+
+
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const toMinutes = (time) => {
@@ -35,10 +41,10 @@ const createTimetableSchema = Joi.object({
       "any.only": "weekDay must be Monday-Saturday",
     }),
   weekType: Joi.string()
-    .valid("all", "odd", "even")
+    .valid("all")
     .default("all")
     .messages({
-      "any.only": "weekType must be all, odd, or even",
+      "any.only": "weekType must be all",
     }),
   startTime: Joi.string()
     .pattern(timeRegex)
@@ -88,9 +94,9 @@ const updateTimetableSlotSchema = Joi.object({
     "any.only": "weekDay must be Monday-Saturday",
   }),
   weekType: Joi.string()
-    .valid("all", "odd", "even")
+    .valid("all")
     .messages({
-      "any.only": "weekType must be all, odd, or even",
+      "any.only": "weekType must be all",
     }),
   startTime: Joi.string().pattern(timeRegex).messages({
     "string.pattern.base": "startTime must be HH:MM 24-hour format",

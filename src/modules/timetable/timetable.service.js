@@ -6,21 +6,21 @@ const TeacherSubject = require("../../models/teacherSubject.model");
 const AppError = require("../../utils/AppError");
 
 const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDay, weekType, startTime, endTime }) => {
-  
+
   const teacher = await User.findById(teacherId);
   if (!teacher || teacher.role !== "TEACHER") {
     throw new AppError("Teacher not found", 404);
   }
 
- 
+
   const subject = await Subject.findById(subjectId);
   if (!subject) throw new AppError("Subject not found", 404);
 
- 
+
   const classExists = await Class.findById(classId);
   if (!classExists) throw new AppError("Class not found", 404);
 
- 
+
   const assignment = await TeacherSubject.findOne({ teacherId, subjectId, classId });
   if (!assignment) {
     throw new AppError("Teacher is not assigned to this subject and class. Assign first.", 400);
@@ -76,15 +76,13 @@ const getTimetableByTeacher = async (teacherId) => {
   return timetable;
 };
 
+
+
 const getActiveSlot = async (teacherId) => {
   const now = new Date();
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const currentDay = days[now.getDay()];
   const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-
-  // weekType logic — odd = 1st and 3rd week, even = 2nd and 4th week
-  const weekOfMonth = Math.ceil(now.getDate() / 7);
-  const isOddWeek = weekOfMonth % 2 !== 0;
 
   const slot = await Timetable.findOne({
     teacherId,
@@ -92,11 +90,28 @@ const getActiveSlot = async (teacherId) => {
     startTime: { $lte: currentTime },
     endTime: { $gte: currentTime },
     isActive: true,
-    weekType: { $in: ["all", isOddWeek ? "odd" : "even"] },
   });
 
   if (!slot) throw new AppError("No active class right now", 404);
 
+  return slot;
+};
+
+const getActiveSlotByClass = async (classId) => {
+  const now = new Date();
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const currentDay = days[now.getDay()];
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+  const slot = await Timetable.findOne({
+    classId,
+    weekDay: currentDay,
+    startTime: { $lte: currentTime },
+    endTime: { $gte: currentTime },
+    isActive: true,
+  });
+
+  if (!slot) throw new AppError("No active class right now", 404);
   return slot;
 };
 
@@ -183,6 +198,7 @@ module.exports = {
   getTimetableByClass,
   getTimetableByTeacher,
   getActiveSlot,
+  getActiveSlotByClass,
   updateTimetableSlot,
   deleteTimetableSlot,
 };

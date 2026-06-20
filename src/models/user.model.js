@@ -60,11 +60,7 @@ const userSchema = new mongoose.Schema(
       ref: "Class",
       default: null,
     },
-    departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-      default: null,
-    },
+   
     // Future attendance security
     deviceId: {
       type: String,

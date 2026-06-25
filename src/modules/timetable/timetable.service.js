@@ -2,7 +2,7 @@ const Timetable = require("../../models/timetable.model");
 const User = require("../../models/user.model");
 const Subject = require("../../models/subject.model");
 const Class = require("../../models/class.model");
-const TeacherSubject = require("../../models/teacherSubject.model");
+const TeacherSubject = require("../../models/teachersubject.model");
 const AppError = require("../../utils/AppError");
 
 const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDay, weekType, startTime, endTime }) => {

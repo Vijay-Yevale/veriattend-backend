@@ -66,5 +66,8 @@ attendanceSessionSchema.index(
   { qrToken: 1, isActive: 1 }
 );
 
-const Session = mongoose.model("Session", attendanceSessionSchema);
+const Session =
+    mongoose.models.Session ||
+    mongoose.model("Session", attendanceSessionSchema);
+
 module.exports = Session;

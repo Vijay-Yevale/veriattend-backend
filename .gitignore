@@ -1,3 +1,4 @@
 node_modules/
 .env
 ml-service/model.pkl
+ml-service/datasets/*.csv

@@ -1,26 +1,44 @@
-
-
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
-
+import os
 
 app = Flask(__name__)
 
 
+# Load Trained Model
+
 
 try:
-    model = joblib.load("model.pkl")
-    
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    # Model path
+    MODEL_PATH = os.path.join(BASE_DIR, "model", "model.pkl")
+
+    # Load model
+    model = joblib.load(MODEL_PATH)
+
+    # Get class labels
     classes = model.classes_.tolist()
-    print(f"Model loaded successfully.")
-    print(f"Classes: {classes}")
+
+    print("=" * 50)
+    print("Model loaded successfully.")
+    print(f"Model Path : {MODEL_PATH}")
+    print(f"Classes    : {classes}")
+    print("=" * 50)
+
 except Exception as e:
-    print(f"ERROR: Could not load model.pkl → {e}")
-    print("Run train.py first to generate model.pkl")
+    print("=" * 50)
+    print(f"ERROR: Could not load model -> {e}")
+    print("Run train.py first to generate model/model.pkl")
+    print("=" * 50)
+
     model = None
     classes = []
 
+
+
+# Health Check
 
 
 @app.route("/health", methods=["GET"])
@@ -32,79 +50,140 @@ def health():
 
 
 
+# Predict Risk
+
+
 @app.route("/predict-risk", methods=["POST"])
 def predict_risk():
 
-    #  check model is loaded
+    # Check model
     if model is None:
         return jsonify({
-            "error": "Model not loaded. Run train.py first."
+            "error": "Model not loaded."
         }), 500
 
-    #  parse request body 
     body = request.get_json()
 
     if not body:
-        return jsonify({ "error": "Request body is required" }), 400
+        return jsonify({
+            "error": "Request body is required."
+        }), 400
 
-    #  validate required fields 
-    required = ["attendancePercentage", "quizAverage", "assignmentAverage", "internalMarks"]
-    missing  = [field for field in required if field not in body]
+    # Required fields
+    required = [
+        "attendancePercentage",
+        "quizAverage",
+        "assignmentAverage",
+        "internalMarks"
+    ]
+
+    missing = [field for field in required if field not in body]
 
     if missing:
         return jsonify({
             "error": f"Missing fields: {', '.join(missing)}"
         }), 400
 
-    #  extract values
-    attendance   = float(body["attendancePercentage"])
-    quiz         = float(body["quizAverage"])
-    assignment   = float(body["assignmentAverage"])
-    internal_raw = float(body["internalMarks"])
+    try:
 
- 
-    internal_normalized = (internal_raw / 30) * 100
+        attendance = float(body["attendancePercentage"])
+        quiz = float(body["quizAverage"])
+        assignment = float(body["assignmentAverage"])
+        internal = float(body["internalMarks"])
+
+    except ValueError:
+        return jsonify({
+            "error": "All values must be numeric."
+        }), 400
+
+    # Validation
+
+
+    if not (0 <= attendance <= 100):
+        return jsonify({"error": "attendancePercentage must be between 0 and 100"}), 400
+
+    if not (0 <= quiz <= 100):
+        return jsonify({"error": "quizAverage must be between 0 and 100"}), 400
+
+    if not (0 <= assignment <= 100):
+        return jsonify({"error": "assignmentAverage must be between 0 and 100"}), 400
+
+    if not (0 <= internal <= 30):
+        return jsonify({"error": "internalMarks must be between 0 and 30"}), 400
+
+
+    internal_percentage = (internal / 30) * 100
+
+  
+    # Prepare Input
+   
 
     input_df = pd.DataFrame([{
         "attendancePercentage": attendance,
-        "quizAverage":          quiz,
-        "assignmentAverage":    assignment,
-        "internalMarks":        internal_normalized,
+        "quizAverage": quiz,
+        "assignmentAverage": assignment,
+        "internalMarks": internal_percentage
     }])
 
-    #  predict 
-    # predict()      → returns ["LOW"] or ["MEDIUM"] or ["HIGH"]
-    # predict_proba() → returns probability for each class
-    #                   e.g. [0.05, 0.85, 0.10] for [HIGH, LOW, MEDIUM]
 
-    risk_level   = model.predict(input_df)[0]
-    probabilities = model.predict_proba(input_df)[0]
+    # Prediction
+   
 
-    #  calculate passProbability 
-    # passProbability = P(LOW) + P(MEDIUM)
-    # meaning: how likely is student to pass
-    # riskScore = P(HIGH) → how likely is student to be at risk
+    try:
 
-    high_idx = classes.index("HIGH")
-    low_idx  = classes.index("LOW")
-    med_idx  = classes.index("MEDIUM")
+        prediction = model.predict(input_df)[0]
 
-    risk_score       = round(float(probabilities[high_idx]), 4)
-    pass_probability = round(float(probabilities[low_idx] + probabilities[med_idx]), 4)
+        probabilities = model.predict_proba(input_df)[0]
 
-    #  return result ─
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+    
+    # Probability Calculation
+    
+
+    high_index = classes.index("HIGH")
+    low_index = classes.index("LOW")
+    medium_index = classes.index("MEDIUM")
+
+    risk_score = round(float(probabilities[high_index]), 4)
+
+    pass_probability = round(
+        float(
+            probabilities[low_index] +
+            probabilities[medium_index]
+        ),
+        4
+    )
+
+
+    # Response
+    
+
     return jsonify({
-        "riskLevel":       risk_level,
-        "riskScore":       risk_score,       # P(HIGH)  → 0.0 to 1.0
-        "passProbability": pass_probability, # P(PASS)  → 0.0 to 1.0
+
+        "riskLevel": prediction,
+
+        "riskScore": risk_score,
+
+        "passProbability": pass_probability
+
     })
 
 
 
+# Start Flask Server
+
+
 if __name__ == "__main__":
-    print("Starting VeriAttend ML Service on port 5001...")
+
+    print("\nStarting VeriAttend ML Service...")
+
     app.run(
-        host="0.0.0.0",  # accessible from Node.js
+        host="0.0.0.0",
         port=5001,
-        debug=True       # set to False in production
+        debug=True
     )

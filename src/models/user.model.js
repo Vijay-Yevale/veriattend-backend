@@ -60,11 +60,17 @@ const userSchema = new mongoose.Schema(
       ref: "Class",
       default: null,
     },
-   
+
     // Future attendance security
     deviceId: {
       type: String,
       default: null,
+    },
+
+    fcmToken: {
+      type: String,
+      default: null,
+      select: false,    
     },
 
     refreshToken: {

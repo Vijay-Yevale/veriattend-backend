@@ -123,6 +123,10 @@ const loginUser = async ({
   email,
   password,
 }) => {
+
+    if (typeof email !== "string" || typeof password !== "string") {
+    throw new AppError("Invalid credentials", 400);
+  }
   const user =
     await User.findOne({
       email:

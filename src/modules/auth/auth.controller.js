@@ -4,6 +4,7 @@ const sendResponse = require("../../utils/response.util");
 const {
   registerUser,
   loginUser,
+  getMe
 } = require("./auth.service");
 
 
@@ -70,7 +71,14 @@ const login = catchAsync(
   }
 );
 
+const getUser = catchAsync(async(req,res)=>{
+  const userId = req.user._id;
+  const user = await getMe({userId});
+  sendResponse(res,200,"user fetch successfully",user);
+});
+
 module.exports = {
   register,
   login,
+  getUser
 };

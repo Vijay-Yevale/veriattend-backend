@@ -167,7 +167,16 @@ const loginUser = async ({
   };
 };
 
+const getMe = async({userId})=>{
+const user = await User.findById(userId);
+if(!user){
+  throw new AppError("User doesn't exists",404);
+}
+return user;
+}
+
 module.exports = {
   registerUser,
   loginUser,
+  getMe
 };

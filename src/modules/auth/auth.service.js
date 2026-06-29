@@ -170,7 +170,7 @@ const loginUser = async ({
 const getMe = async({userId})=>{
 const user = await User.findById(userId)
   .populate('departmentId', 'name code')
-  .populate('classId', 'className semester');
+  .populate('classId', 'className semester academicYear')
 if(!user){
   throw new AppError("User doesn't exists",404);
 }

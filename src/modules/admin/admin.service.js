@@ -465,7 +465,7 @@ module.exports = {
   createTeacher,
   createClass,
   createSubject,
-  assignClassToStudent,
+  bulkAssignClassToStudents,
   assignTeacherToSubject,
 
   getAllDepartments,

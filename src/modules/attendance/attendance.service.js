@@ -269,21 +269,13 @@ const closedExpiredSession = async () => {
 
 
 const manualAttendance = async ({ teacher, sessionId, studentIds, reason }) => {
-
   if (!reason || reason.trim().length === 0) {
     throw new AppError("Reason is required for manual attendance", 400);
   }
 
-  const session = await Session.findOne({
-    _id: sessionId,
-    teacherId: teacher._id,
-  });
+  const session = await Session.findOne({ _id: sessionId, teacherId: teacher._id });
 
-
-
-  if (!session) {
-    throw new AppError("Session not found or unauthorized", 401);
-  }
+  if (!session) throw new AppError("Session not found or unauthorized", 401);
 
   const validStudents = await User.find({
     _id: { $in: studentIds },
@@ -291,53 +283,33 @@ const manualAttendance = async ({ teacher, sessionId, studentIds, reason }) => {
     role: "STUDENT",
   });
 
- 
-
-  const validStudentIds = validStudents.map((s) => s._id.toString());
-
-  console.log("validStudentIds:", validStudentIds);
+  // Set for O(1) lookup instead of array.includes() which is O(n)
+  const validStudentIdSet = new Set(validStudents.map((s) => s._id.toString()));
 
   const existingRecords = await Record.find({
     sessionId,
-    studentId: { $in: validStudentIds },
+    studentId: { $in: [...validStudentIdSet] },
   });
 
+  const alreadyMarkedSet = new Set(existingRecords.map((r) => r.studentId.toString()));
 
-  const alreadyMarkedIds = existingRecords.map((r) =>
-    r.studentId.toString()
-  );
-
-
-  const created = [];
+  const toCreate = [];
   const skipped = [];
 
   for (const id of studentIds) {
-    console.log("Processing student:", id);
-
     const studentId = id.toString();
 
-    if (!validStudentIds.includes(studentId)) {
-      console.log("Skipped - invalid student");
-
-      skipped.push({
-        studentId,
-        reason: "Not found or not in this class",
-      });
+    if (!validStudentIdSet.has(studentId)) {
+      skipped.push({ studentId, reason: "Not a student or not in this class" });
       continue;
     }
 
-    if (alreadyMarkedIds.includes(studentId)) {
-      console.log("Skipped - already marked");
-
-      skipped.push({
-        studentId,
-        reason: "Already marked",
-      });
+    if (alreadyMarkedSet.has(studentId)) {
+      skipped.push({ studentId, reason: "Already marked" });
       continue;
     }
 
-
-    const record = await Record.create({
+    toCreate.push({
       sessionId,
       teacherId: teacher._id,
       classId: session.classId,
@@ -346,14 +318,12 @@ const manualAttendance = async ({ teacher, sessionId, studentIds, reason }) => {
       markedBy: "TEACHER",
       reason: reason.trim(),
     });
-
-
-    created.push(record);
   }
 
- 
+  // single DB write instead of one create() per student in a loop
+  const created = toCreate.length > 0 ? await Record.insertMany(toCreate) : [];
 
-  return { created, skipped };
+  return { created: created.length, skipped };
 };
 
 

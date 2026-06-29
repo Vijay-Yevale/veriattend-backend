@@ -147,29 +147,12 @@ const subject = catchAsync(async (req, res) => {
 
 // ASSIGN STUDENT TO CLASS
 
-const assignStudent =
-    catchAsync(async (req, res) => {
-        const {
-            classId,
-            studentId,
-        } = req.body;
 
-        const updatedStudent =
-            await assignClassToStudent(
-                {
-                    classId,
-                    studentId,
-                },
-                req.user
-            );
-
-        sendResponse(
-            res,
-            200,
-            "Student assigned to class successfully",
-            updatedStudent
-        );
-    });
+const bulkAssignStudents = catchAsync(async (req, res) => {
+  const { classId, studentIds } = req.body;
+  const result = await bsulkAssignClassToStudents({ classId, studentIds }, req.user);
+  sendResponse(res, 200, "Students assigned to class", result);
+});
 
 // ASSIGN TEACHER TO SUBJECT
 
@@ -319,7 +302,7 @@ module.exports = {
     subject,
 
     // ASSIGN
-    assignStudent,
+    bulkAssignStudents,
     assignTeacher,
 
     // GET

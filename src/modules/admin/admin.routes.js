@@ -11,7 +11,7 @@ const {
   createClassSchema,
   createSubjectSchema,
   createTeacherSubjectSchema,
-  assignClassSchema,
+  bulkAssignClassSchema,
 } = require("./admin.validator");
 
 const {
@@ -23,7 +23,7 @@ const {
   subject,
 
   // ASSIGN
-  assignStudent,
+  bulkAssignStudents,
   assignTeacher,
 
   // GET
@@ -81,11 +81,12 @@ adminRouter.post(
   subject
 );
 
+
 adminRouter.patch(
-  "/assign-student",
-  validate(assignClassSchema),
+  "/bulk-assign-students",
+  validate(bulkAssignClassSchema),
   allowOnly("HOD"),
-  assignStudent
+  bulkAssignStudents
 );
 
 adminRouter.patch(

@@ -204,83 +204,30 @@ const createSubject = async ({subjectName,subjectCode,semester}, hodUser) => {
 // ASSIGN STUDENT TO CLASS
 
 
-const assignClassToStudent = async (
-  { classId, studentId },
-  hodUser
-) => {
-  const student =
-    await User.findById(studentId);
+const bulkAssignClassToStudents = async ({ classId, studentIds }, hodUser) => {
+  const classExists = await Class.findById(classId);
 
-  if (!student) {
-    throw new AppError(
-      "Student not found",
-      404
-    );
+  if (!classExists) throw new AppError("Class not found", 404);
+
+  if (classExists.departmentId.toString() !== hodUser.departmentId.toString()) {
+    throw new AppError("You can assign students only to your department classes", 403);
   }
 
-  if (student.role !== "STUDENT") {
-    throw new AppError(
-      "User is not a student",
-      400
-    );
-  }
+  const result = await User.updateMany(
+    {
+      _id: { $in: studentIds },
+      role: "STUDENT",
+      departmentId: classExists.departmentId,
+      classId: null,
+    },
+    { $set: { classId } }
+  );
 
-  const classExists =
-    await Class.findById(classId);
-
-  if (!classExists) {
-    throw new AppError(
-      "Class not found",
-      404
-    );
-  }
-
-  // HOD can manage only own department
-
-  if (
-    classExists.departmentId.toString() !==
-    hodUser.departmentId.toString()
-  ) {
-    throw new AppError(
-      "You can assign students only to your department classes",
-      403
-    );
-  }
-
-  if (
-    student.departmentId.toString() !==
-    classExists.departmentId.toString()
-  ) {
-    throw new AppError(
-      "Student and class belong to different departments",
-      400
-    );
-  }
-
-  if (student.classId) {
-    throw new AppError(
-      "Student is already assigned to a class",
-      409
-    );
-  }
-
-  const updatedStudent =
-    await User.findByIdAndUpdate(
-      studentId,
-      {
-        $set: {
-          classId,
-        },
-      },
-      {
-        new: true,
-      }
-    );
-
-  updatedStudent.password =
-    undefined;
-
-  return updatedStudent;
+  return {
+    requested: studentIds.length,
+    assigned: result.modifiedCount,
+    skipped: studentIds.length - result.modifiedCount,
+  };
 };
 
 

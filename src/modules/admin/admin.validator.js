@@ -220,16 +220,19 @@ const createTeacherSubjectSchema =
 // ASSIGN STUDENT TO CLASS
 
 
-const assignClassSchema = Joi.object({
-  studentId: objectId.messages({
-    "any.required":
-      "Student ID is required",
-  }),
 
-  classId: objectId.messages({
-    "any.required":
-      "Class ID is required",
+const bulkAssignClassSchema = Joi.object({
+  classId: objectId.required().messages({
+    "any.required": "Class ID is required",
   }),
+  studentIds: Joi.array()
+    .items(objectId)
+    .min(1)
+    .required()
+    .messages({
+      "any.required": "Student IDs are required",
+      "array.min": "At least one student ID required",
+    }),
 });
 
 module.exports = {
@@ -239,5 +242,5 @@ module.exports = {
   createClassSchema,
   createSubjectSchema,
   createTeacherSubjectSchema,
-  assignClassSchema,
+ bulkAssignClassSchema
 };

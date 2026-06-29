@@ -50,7 +50,7 @@ const registerUser = async ({
     classId: null,
   });
 
-  // ─── populate after create so shape matches getMe ─────
+
   const fullUser = await User.findById(newUser._id)
     .populate('departmentId', 'name code')
     .populate('classId', 'className semester academicYear');
@@ -67,7 +67,7 @@ const loginUser = async ({ email, password }) => {
     throw new AppError("Invalid credentials", 400);
   }
 
-  // ─── populate here too so shape matches getMe ─────────
+ 
   const user = await User.findOne({ email: email.trim().toLowerCase() })
     .select("+password")
     .populate('departmentId', 'name code')

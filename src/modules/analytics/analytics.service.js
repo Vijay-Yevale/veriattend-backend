@@ -9,11 +9,11 @@ const AcademicRecord = require("../../models/academicRecord.model");
 const RiskProfile    = require("../../models/riskProfile.model");
 
 const {
-  avg,
   classesNeededFor75,
   createRiskMap,
   buildStudentAnalytics,
   buildDashboardSummary,
+  aggregateAcademicMarks,
 } = require("./analytics.helper");
 
 //  aggregate live attendance for one student 
@@ -122,11 +122,13 @@ const getStudentDashboard = async (studentId) => {
     throw new AppError("Student is not assigned to any class", 400);
   }
 
-  const [attendance, academic, risk] = await Promise.all([
+  const [attendance, academicRecords, risk] = await Promise.all([
     aggregateLiveAttendance(studentId, student.classId),
-    AcademicRecord.findOne({ studentId }).lean(),
+    AcademicRecord.find({ studentId }).lean(),
     RiskProfile.findOne({ studentId }).lean(),
   ]);
+
+  const academic = aggregateAcademicMarks(academicRecords);
 
   return {
     // live attendance — fresh on every request
@@ -139,16 +141,8 @@ const getStudentDashboard = async (studentId) => {
       subjectWise:          attendance.subjectWise,
     },
 
-    // academic marks
-    academicMarks: academic
-      ? {
-          quizMarks:         academic.quizMarks,
-          quizAverage:       avg(academic.quizMarks),
-          assignmentMarks:   academic.assignmentMarks,
-          assignmentAverage: avg(academic.assignmentMarks),
-          internalMarks:     academic.internalMarks,
-        }
-      : null,
+    // academic marks — aggregated across every subject's AcademicRecord
+    academicMarks: academic,
 
     // risk — from last cron run (every 7 hrs)
     risk: {
@@ -205,11 +199,13 @@ const getStudentDetailForTeacher = async (studentId) => {
     throw new AppError("Student not found", 404);
   }
 
-  const [attendance, academic, risk] = await Promise.all([
+  const [attendance, academicRecords, risk] = await Promise.all([
     aggregateLiveAttendance(studentId, student.classId),
-    AcademicRecord.findOne({ studentId }).lean(),
+    AcademicRecord.find({ studentId }).lean(),
     RiskProfile.findOne({ studentId }).lean(),
   ]);
+
+  const academic = aggregateAcademicMarks(academicRecords);
 
   return {
     studentId: studentId,
@@ -224,13 +220,7 @@ const getStudentDetailForTeacher = async (studentId) => {
       subjectWise:          attendance.subjectWise,
     },
 
-    academicMarks: academic
-      ? {
-          quizAverage:       avg(academic.quizMarks),
-          assignmentAverage: avg(academic.assignmentMarks),
-          internalMarks:     academic.internalMarks,
-        }
-      : null,
+    academicMarks: academic,
 
     risk: {
       performanceScore: risk?.performanceScore ?? null,

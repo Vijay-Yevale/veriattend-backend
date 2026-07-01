@@ -14,6 +14,33 @@ function classesNeededFor75(attended, total) {
   return x > 0 ? x : 0;
 }
 
+//  aggregate a student's AcademicRecord docs (one per subject)
+// into one flat summary — mirrors aggregateLiveAttendance's pattern
+// for the attendance side. records must come from .find(), not .findOne()
+function aggregateAcademicMarks(records) {
+  if (!records || !records.length) return null;
+
+  const allQuizMarks       = [];
+  const allAssignmentMarks = [];
+  const internalMarksList  = [];
+
+  for (const record of records) {
+    if (record.quizMarks?.length) allQuizMarks.push(...record.quizMarks);
+    if (record.assignmentMarks?.length) allAssignmentMarks.push(...record.assignmentMarks);
+    if (record.internalMarks !== null && record.internalMarks !== undefined) {
+      internalMarksList.push(record.internalMarks);
+    }
+  }
+
+  return {
+    quizMarks:         allQuizMarks,
+    quizAverage:       avg(allQuizMarks),
+    assignmentMarks:   allAssignmentMarks,
+    assignmentAverage: avg(allAssignmentMarks),
+    internalMarks:     avg(internalMarksList),
+  };
+}
+
 //  map riskProfiles array to { studentId → riskProfile } 
 function createRiskMap(riskProfiles) {
   const map = {};
@@ -96,4 +123,5 @@ module.exports = {
   createRiskMap,
   buildStudentAnalytics,
   buildDashboardSummary,
+  aggregateAcademicMarks,
 };

@@ -4,6 +4,12 @@ const { verifyToken } = require("../utils/jwt.util");
 const catchAsync = require("../utils/catchAsync");
 
 const authMiddleware = catchAsync(async (req, res, next) => {
+    console.log('======================');
+  console.log(req.method, req.originalUrl);
+  console.log(req.headers);
+  console.log('Authorization:', req.headers.authorization);
+  console.log('======================');
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {

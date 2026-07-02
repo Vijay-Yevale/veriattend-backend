@@ -28,6 +28,6 @@ academicRouter.put("/internal",validate(setInternalMarksSchema), allowOnly("TEAC
 academicRouter.post("/bulk",validate(bulkMarksSchema), allowOnly("TEACHER"), bulkSubmitMarksController);
 
 academicRouter.get("/class/:classId/subject/:subjectId", allowOnly("TEACHER", "HOD"), getClassMarksController);
-academicRouter.get("/student/me", allowOnly("STUDENT"),getStudentMarksController);
+academicRouter.get("/student/marks", allowOnly("STUDENT"),getStudentMarksController);
 
 module.exports = academicRouter;

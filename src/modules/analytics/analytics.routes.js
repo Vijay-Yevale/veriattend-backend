@@ -24,7 +24,7 @@ analyticsRouter.use(authMiddleware);
 
 //  student routes 
 analyticsRouter.get(
-  "/student/me",
+  "/student/dashboard",
   allowOnly("STUDENT"),
   getMyDashboard
 );

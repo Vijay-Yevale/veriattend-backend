@@ -15,7 +15,7 @@ const {
   buildDashboardSummary,
   aggregateAcademicMarks,
 } = require("./analytics.helper");
-const { getDepartmentAnalytics } = require("./analytics.controller");
+
 
 //  aggregate live attendance for one student 
 async function aggregateLiveAttendance(studentId, classId) {

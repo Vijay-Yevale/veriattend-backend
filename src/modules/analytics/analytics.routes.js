@@ -5,7 +5,6 @@ const {
   getClassAnalytics,
   getStudentDetail,
   getDepartmentAnalytics,
- 
 } = require("./analytics.controller");
 
 const {
@@ -15,21 +14,21 @@ const {
 } = require("./analytics.validator");
 
 const authMiddleware = require("../../middleware/auth.middleware");
-const validate       = require("../../middleware/validate.middleware");
-const allowOnly      = require("../../middleware/role.middleware");
+const validate = require("../../middleware/validate.middleware");
+const allowOnly = require("../../middleware/role.middleware");
 
 const analyticsRouter = express.Router();
 
 analyticsRouter.use(authMiddleware);
 
-//  student routes 
+// Student Routes
 analyticsRouter.get(
   "/student/dashboard",
   allowOnly("STUDENT"),
   getMyDashboard
 );
 
-//  teacher routes 
+// Teacher Routes
 analyticsRouter.get(
   "/teacher/class/:classId",
   validate(classIdParamSchema, "params"),
@@ -44,13 +43,12 @@ analyticsRouter.get(
   getStudentDetail
 );
 
-//  HOD routes
+// HOD Routes
 analyticsRouter.get(
   "/department/:departmentId",
   validate(departmentIdParamSchema, "params"),
-  allowOnly("HOD","SUPER_ADMIN"),
+  allowOnly("HOD", "SUPER_ADMIN"),
   getDepartmentAnalytics
 );
-
 
 module.exports = analyticsRouter;

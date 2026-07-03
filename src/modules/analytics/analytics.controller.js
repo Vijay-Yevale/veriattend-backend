@@ -1,54 +1,76 @@
-const catchAsync  = require("../../utils/catchAsync");
+const catchAsync = require("../../utils/catchAsync");
 const sendResponse = require("../../utils/response.util");
 
 const {
   getStudentDashboard,
   getClassDashboard,
   getStudentDetailForTeacher,
-  getDepartmentDashboard,
+  getDepartmentAnalytics: getDepartmentAnalyticsService,
 } = require("./analytics.service");
 
-//api/analytics/student/me - student dashboard
+// Student Dashboard
+// GET /api/analytics/student/dashboard
 const getMyDashboard = catchAsync(async (req, res) => {
   const studentId = req.user._id;
 
   const data = await getStudentDashboard(studentId);
 
-  sendResponse(res, 200, "Student dashboard fetched successfully", data);
+  sendResponse(
+    res,
+    200,
+    "Student dashboard fetched successfully",
+    data
+  );
 });
 
-//  api/analytics/teacher/class/:classId  - class analytics
+// Teacher Class Analytics
+// GET /api/analytics/teacher/class/:classId
 const getClassAnalytics = catchAsync(async (req, res) => {
   const { classId } = req.params;
 
   const data = await getClassDashboard(classId);
 
-  sendResponse(res, 200, "Class analytics fetched successfully", data);
+  sendResponse(
+    res,
+    200,
+    "Class analytics fetched successfully",
+    data
+  );
 });
 
-//   api/analytics/teacher/student/:studentId ─ teacher can see single student 
+// Teacher Student Detail
+// GET /api/analytics/teacher/student/:studentId
 const getStudentDetail = catchAsync(async (req, res) => {
   const { studentId } = req.params;
 
   const data = await getStudentDetailForTeacher(studentId);
 
-  sendResponse(res, 200, "Student detail fetched successfully", data);
+  sendResponse(
+    res,
+    200,
+    "Student detail fetched successfully",
+    data
+  );
 });
 
-//api/analytics/hod/department/:departmentId - department analtyics
+// HOD Department Analytics
+// GET /api/analytics/department/:departmentId
 const getDepartmentAnalytics = catchAsync(async (req, res) => {
   const { departmentId } = req.params;
 
-  const data = await getDepartmentDashboard(departmentId);
+  const data = await getDepartmentAnalyticsService(departmentId);
 
-  sendResponse(res, 200, "Department analytics fetched successfully", data);
+  sendResponse(
+    res,
+    200,
+    "Department analytics fetched successfully",
+    data
+  );
 });
-
 
 module.exports = {
   getMyDashboard,
   getClassAnalytics,
   getStudentDetail,
   getDepartmentAnalytics,
-
 };

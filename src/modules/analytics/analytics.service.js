@@ -15,6 +15,7 @@ const {
   buildDashboardSummary,
   aggregateAcademicMarks,
 } = require("./analytics.helper");
+const { getDepartmentAnalytics } = require("./analytics.controller");
 
 //  aggregate live attendance for one student 
 async function aggregateLiveAttendance(studentId, classId) {
@@ -234,7 +235,7 @@ const getStudentDetailForTeacher = async (studentId) => {
 };
 
 //  HOD: department dashboard 
-const getDepartmentDashboard = async (departmentId) => {
+const getDepartmentAnalytics = async (departmentId) => {
   const department = await Department.findById(departmentId);
   if(!department){
     throw new AppError("Department doesn't exists",404);
@@ -267,5 +268,5 @@ module.exports = {
   getStudentDashboard,
   getClassDashboard,
   getStudentDetailForTeacher,
-  getDepartmentDashboard,
+  getDepartmentAnalytics,
 };

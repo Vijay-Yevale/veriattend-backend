@@ -10,38 +10,34 @@ const objectId = Joi.string()
 
 
 const createHodSchema = Joi.object({
-  userName: Joi.string().trim().min(3).required().messages({
-      "string.min":
-        "Username must be at least 3 characters",
-      "any.required":
-        "Username is required",
+  userName: Joi.string()
+    .trim()
+    .min(3)
+    .required()
+    .messages({
+      "string.min": "Username must be at least 3 characters",
+      "any.required": "Username is required",
     }),
 
   email: Joi.string()
     .email()
     .required()
     .messages({
-      "string.email":
-        "Please provide a valid email",
-      "any.required":
-        "Email is required",
+      "string.email": "Please provide a valid email",
+      "any.required": "Email is required",
     }),
 
   password: Joi.string()
     .min(6)
     .required()
     .messages({
-      "string.min":
-        "Password must be at least 6 characters",
-      "any.required":
-        "Password is required",
+      "string.min": "Password must be at least 6 characters",
+      "any.required": "Password is required",
     }),
 
   departmentId: objectId.messages({
-    "any.required":
-      "Department ID is required",
-    "string.length":
-      "Department ID must be a valid MongoDB ObjectId",
+    "any.required": "Department ID is required",
+    "string.length": "Department ID must be a valid MongoDB ObjectId",
   }),
 });
 
@@ -55,30 +51,24 @@ const createTeacherSchema = Joi.object({
     .min(3)
     .required()
     .messages({
-      "string.min":
-        "Username must be at least 3 characters",
-      "any.required":
-        "Username is required",
+      "string.min": "Username must be at least 3 characters",
+      "any.required": "Username is required",
     }),
 
   email: Joi.string()
     .email()
     .required()
     .messages({
-      "string.email":
-        "Please provide a valid email",
-      "any.required":
-        "Email is required",
+      "string.email": "Please provide a valid email",
+      "any.required": "Email is required",
     }),
 
   password: Joi.string()
     .min(6)
     .required()
     .messages({
-      "string.min":
-        "Password must be at least 6 characters",
-      "any.required":
-        "Password is required",
+      "string.min": "Password must be at least 6 characters",
+      "any.required": "Password is required",
     }),
 });
 
@@ -86,35 +76,29 @@ const createTeacherSchema = Joi.object({
 // CREATE DEPARTMENT
 
 
-const createDepartmentSchema =
-  Joi.object({
-    name: Joi.string()
-      .trim()
-      .min(2)
-      .required()
-      .messages({
-        "string.min":
-          "Department name must be at least 2 characters",
-        "any.required":
-          "Department name is required",
-      }),
+const createDepartmentSchema = Joi.object({
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .required()
+    .messages({
+      "string.min": "Department name must be at least 2 characters",
+      "any.required": "Department name is required",
+    }),
 
-    code: Joi.string()
-      .trim()
-      .uppercase()
-      .min(2)
-      .required()
-      .messages({
-        "string.min":
-          "Department code must be at least 2 characters",
-        "any.required":
-          "Department code is required",
-      }),
-  });
+  code: Joi.string()
+    .trim()
+    .uppercase()
+    .min(2)
+    .required()
+    .messages({
+      "string.min": "Department code must be at least 2 characters",
+      "any.required": "Department code is required",
+    }),
+});
 
 
 // CREATE CLASS
-
 
 const createClassSchema = Joi.object({
   className: Joi.string()
@@ -122,10 +106,8 @@ const createClassSchema = Joi.object({
     .min(2)
     .required()
     .messages({
-      "string.min":
-        "Class name must be at least 2 characters",
-      "any.required":
-        "Class name is required",
+      "string.min": "Class name must be at least 2 characters",
+      "any.required": "Class name is required",
     }),
 
   academicYear: Joi.string()
@@ -134,8 +116,7 @@ const createClassSchema = Joi.object({
     .messages({
       "string.pattern.base":
         "Academic year must be in format YYYY-YY (e.g. 2025-26)",
-      "any.required":
-        "Academic year is required",
+      "any.required": "Academic year is required",
     }),
 
   semester: Joi.number()
@@ -143,12 +124,9 @@ const createClassSchema = Joi.object({
     .max(8)
     .required()
     .messages({
-      "number.min":
-        "Semester must be between 1 and 8",
-      "number.max":
-        "Semester must be between 1 and 8",
-      "any.required":
-        "Semester is required",
+      "number.min": "Semester must be between 1 and 8",
+      "number.max": "Semester must be between 1 and 8",
+      "any.required": "Semester is required",
     }),
 });
 
@@ -156,83 +134,100 @@ const createClassSchema = Joi.object({
 // CREATE SUBJECT
 
 
-const createSubjectSchema =
-  Joi.object({
-    subjectName: Joi.string()
-      .trim()
-      .min(2)
-      .required()
-      .messages({
-        "string.min":
-          "Subject name must be at least 2 characters",
-        "any.required":
-          "Subject name is required",
-      }),
-
-    subjectCode: Joi.string()
-      .trim()
-      .uppercase()
-      .min(2)
-      .required()
-      .messages({
-        "string.min":
-          "Subject code must be at least 2 characters",
-        "any.required":
-          "Subject code is required",
-      }),
-
-    semester: Joi.number()
-      .min(1)
-      .max(8)
-      .required()
-      .messages({
-        "number.min":
-          "Semester must be between 1 and 8",
-        "number.max":
-          "Semester must be between 1 and 8",
-        "any.required":
-          "Semester is required",
-      }),
-  });
-
-
-// ASSIGN TEACHER TO SUBJECT
-
-
-const createTeacherSubjectSchema =
-  Joi.object({
-    teacherId: objectId.messages({
-      "any.required":
-        "Teacher ID is required",
+const createSubjectSchema = Joi.object({
+  subjectName: Joi.string()
+    .trim()
+    .min(2)
+    .required()
+    .messages({
+      "string.min": "Subject name must be at least 2 characters",
+      "any.required": "Subject name is required",
     }),
 
-    subjectId: objectId.messages({
-      "any.required":
-        "Subject ID is required",
+  subjectCode: Joi.string()
+    .trim()
+    .uppercase()
+    .min(2)
+    .required()
+    .messages({
+      "string.min": "Subject code must be at least 2 characters",
+      "any.required": "Subject code is required",
     }),
 
-    classId: objectId.messages({
-      "any.required":
-        "Class ID is required",
+  semester: Joi.number()
+    .min(1)
+    .max(8)
+    .required()
+    .messages({
+      "number.min": "Semester must be between 1 and 8",
+      "number.max": "Semester must be between 1 and 8",
+      "any.required": "Semester is required",
     }),
-  });
+});
 
-// ASSIGN STUDENT TO CLASS
 
+// ASSIGN TEACHER
+
+
+const createTeacherSubjectSchema = Joi.object({
+  teacherId: objectId.messages({
+    "any.required": "Teacher ID is required",
+  }),
+
+  subjectId: objectId.messages({
+    "any.required": "Subject ID is required",
+  }),
+
+  classId: objectId.messages({
+    "any.required": "Class ID is required",
+  }),
+});
+
+
+// ASSIGN STUDENTS
 
 
 const bulkAssignClassSchema = Joi.object({
-  classId: objectId.required().messages({
+  classId: objectId.messages({
     "any.required": "Class ID is required",
   }),
+
   studentIds: Joi.array()
     .items(objectId)
     .min(1)
     .required()
     .messages({
+      "array.min": "At least one student ID is required",
       "any.required": "Student IDs are required",
-      "array.min": "At least one student ID required",
     }),
+});
+
+
+// PARAM VALIDATORS
+
+
+const departmentIdParamSchema = Joi.object({
+  departmentId: objectId.messages({
+    "any.required": "Department ID is required",
+  }),
+});
+
+const classIdParamSchema = Joi.object({
+  classId: objectId.messages({
+    "any.required": "Class ID is required",
+  }),
+});
+
+const teacherIdParamSchema = Joi.object({
+  teacherId: objectId.messages({
+    "any.required": "Teacher ID is required",
+  }),
+});
+
+const studentIdParamSchema = Joi.object({
+  studentId: objectId.messages({
+    "any.required": "Student ID is required",
+  }),
 });
 
 module.exports = {
@@ -242,5 +237,10 @@ module.exports = {
   createClassSchema,
   createSubjectSchema,
   createTeacherSubjectSchema,
- bulkAssignClassSchema
+  bulkAssignClassSchema,
+
+  departmentIdParamSchema,
+  classIdParamSchema,
+  teacherIdParamSchema,
+  studentIdParamSchema,
 };

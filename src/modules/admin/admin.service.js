@@ -319,6 +319,51 @@ const getAllDepartments = async () => {
   return departments;
 };
 
+// get deparment details
+const getDepartmentDetails = async (departmentId) => {
+  const department = await Department.findById(departmentId)
+    .populate("hodId", "userName email");
+
+  if (!department) {
+    throw new AppError("Department not found", 404);
+  }
+
+  const [
+    teacherCount,
+    studentCount,
+    classCount,
+    subjectCount,
+  ] = await Promise.all([
+    User.countDocuments({
+      departmentId,
+      role: "TEACHER",
+    }),
+
+    User.countDocuments({
+      departmentId,
+      role: "STUDENT",
+    }),
+
+    Class.countDocuments({
+      departmentId,
+    }),
+
+    Subject.countDocuments({
+      departmentId,
+    }),
+  ]);
+
+  return {
+    _id: department._id,
+    name: department.name,
+    code: department.code,
+    hod: department.hodId,
+    teacherCount,
+    studentCount,
+    classCount,
+    subjectCount,
+  };
+};
 
 // GET TEACHERS
 
@@ -469,6 +514,7 @@ module.exports = {
   assignTeacherToSubject,
 
   getAllDepartments,
+  getDepartmentDetails,
   getTeachers,
   getClasses,
   getSubjects,

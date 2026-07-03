@@ -1,17 +1,20 @@
 const express = require("express");
 
-const validate = require("../../middleware/validate.middleware");
-const allowOnly = require("../../middleware/role.middleware");
 const authMiddleware = require("../../middleware/auth.middleware");
+const allowOnly = require("../../middleware/role.middleware");
+const validate = require("../../middleware/validate.middleware");
 
 const {
+  createDepartmentSchema,
   createHodSchema,
   createTeacherSchema,
-  createDepartmentSchema,
   createClassSchema,
   createSubjectSchema,
   createTeacherSubjectSchema,
   bulkAssignClassSchema,
+
+  departmentIdParamSchema,
+  classIdParamSchema,
 } = require("./admin.validator");
 
 const {
@@ -28,6 +31,7 @@ const {
 
   // GET
   getDepartments,
+  departmentDetails,
   getTeacher,
   getClass,
   getSubject,
@@ -37,11 +41,11 @@ const {
 
 const adminRouter = express.Router();
 
-// AUTH
-
 adminRouter.use(authMiddleware);
 
-// SUPER ADMIN ROUTES
+
+// SUPER ADMIN
+
 
 adminRouter.post(
   "/department",
@@ -57,7 +61,21 @@ adminRouter.post(
   hod
 );
 
-// HOD ROUTES
+adminRouter.get(
+  "/departments",
+  allowOnly("SUPER_ADMIN", "HOD"),
+  getDepartments
+);
+
+adminRouter.get(
+  "/departments/:departmentId",
+  validate(departmentIdParamSchema, "params"),
+  allowOnly("SUPER_ADMIN"),
+  departmentDetails
+);
+
+
+// HOD
 
 
 adminRouter.post(
@@ -81,7 +99,6 @@ adminRouter.post(
   subject
 );
 
-
 adminRouter.patch(
   "/bulk-assign-students",
   validate(bulkAssignClassSchema),
@@ -96,26 +113,11 @@ adminRouter.patch(
   assignTeacher
 );
 
-
-// GET ROUTES
-
-// departments (super admin / hod)
-
-adminRouter.get(
-  "/departments",
-  allowOnly("SUPER_ADMIN", "HOD"),
-  getDepartments
-);
-
-// HOD's department teachers
-
 adminRouter.get(
   "/teachers",
   allowOnly("HOD"),
   getTeacher
 );
-
-// HOD's department classes
 
 adminRouter.get(
   "/classes",
@@ -123,15 +125,11 @@ adminRouter.get(
   getClass
 );
 
-// HOD's department subjects
-
 adminRouter.get(
   "/subjects",
   allowOnly("HOD"),
   getSubject
- );
-
-// students waiting for class assignment
+);
 
 adminRouter.get(
   "/pending-students",
@@ -139,10 +137,9 @@ adminRouter.get(
   pendingStudents
 );
 
-// students of a class
-
 adminRouter.get(
   "/students/:classId",
+  validate(classIdParamSchema, "params"),
   allowOnly("HOD"),
   studentsByClass
 );

@@ -45,7 +45,7 @@ analyticsRouter.get(
 
 // HOD Routes
 analyticsRouter.get(
-  "/department/:departmentId",
+  "/:departmentId",
   validate(departmentIdParamSchema, "params"),
   allowOnly("HOD", "SUPER_ADMIN"),
   getDepartmentAnalytics

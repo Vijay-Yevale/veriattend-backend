@@ -48,7 +48,7 @@ adminRouter.use(authMiddleware);
 
 
 adminRouter.post(
-  "/department",
+  "/departments",
   validate(createDepartmentSchema),
   allowOnly("SUPER_ADMIN"),
   department

@@ -5,7 +5,7 @@ const {
   getStudentDashboard,
   getClassDashboard,
   getStudentDetailForTeacher,
-  getDepartmentAnalytics: getDepartmentAnalyticsService,
+ getDepartmentAnalyticsService,
 } = require("./analytics.service");
 
 // Student Dashboard

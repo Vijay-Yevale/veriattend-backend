@@ -1,3 +1,12 @@
+const mongoose = require("mongoose");
+const Session = require("../../models/attendancesession.model");
+const Record = require("../../models/attendanceRecord.model");
+
+
+//  constants 
+const WEAK_SUBJECT_THRESHOLD   = 75;
+const STRONG_SUBJECT_THRESHOLD = 85;
+
 // ── pure utility functions ────────────────────────────────────────────────────
 
 function avg(arr) {
@@ -7,6 +16,40 @@ function avg(arr) {
   );
 }
 
+function computePerformanceScore({
+  attendancePercentage,
+  quizAverage,
+  assignmentAverage,
+  internalMarks,
+}) {
+  const internalNormalized = ((internalMarks ?? 0) / 30) * 100;
+
+  return parseFloat(
+    (
+      attendancePercentage * 0.20 +
+      quizAverage          * 0.25 +
+      assignmentAverage    * 0.25 +
+      internalNormalized   * 0.30
+    ).toFixed(2)
+  );
+}
+
+//  utility: classify subjects 
+function classifySubjects(subjectWise) {
+  const weak   = [];
+  const strong = [];
+
+  for (const subject of subjectWise) {
+    if (subject.attendancePercentage < WEAK_SUBJECT_THRESHOLD) {
+      weak.push(subject);
+    } else if (subject.attendancePercentage >= STRONG_SUBJECT_THRESHOLD) {
+      strong.push(subject);
+    }
+  }
+
+  return { weak, strong };
+}
+
 function classesNeededFor75(attended, total) {
   if (total === 0) return 0;
   if (attended / total >= 0.75) return 0;
@@ -14,6 +57,99 @@ function classesNeededFor75(attended, total) {
   return x > 0 ? x : 0;
 }
 
+//  aggregate live attendance for one student 
+async function aggregateLiveAttendance(studentId, classId) {
+  const allSessions = await Session.aggregate([
+    { $match: { classId: new mongoose.Types.ObjectId(classId) } },
+    {
+      $group: {
+        _id:          "$subjectId",
+        totalClasses: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from:         "subjects",
+        localField:   "_id",
+        foreignField: "_id",
+        as:           "subject",
+      },
+    },
+    { $unwind: "$subject" },
+    {
+      $project: {
+        subjectId:    "$_id",
+        subjectName:  "$subject.subjectName",
+        subjectCode:  "$subject.subjectCode",
+        totalClasses: 1,
+      },
+    },
+  ]);
+
+  if (!allSessions.length) {
+    return {
+      attendancePercentage: 0,
+      totalClasses:         0,
+      totalAttended:        0,
+      classesMissed:        0,
+      classesNeededFor75:   0,
+      subjectWise:          [],
+    };
+  }
+
+  const attendedSessions = await Record.aggregate([
+    { $match: { studentId: new mongoose.Types.ObjectId(studentId) } },
+    {
+      $group: {
+        _id:             "$subjectId",
+        attendedClasses: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const attendedMap = {};
+  for (const a of attendedSessions) {
+    attendedMap[a._id.toString()] = a.attendedClasses;
+  }
+
+  let totalClasses  = 0;
+  let totalAttended = 0;
+  const subjectWise = [];
+
+  for (const s of allSessions) {
+    const attended   = attendedMap[s.subjectId.toString()] ?? 0;
+    const percentage = s.totalClasses > 0
+      ? parseFloat(((attended / s.totalClasses) * 100).toFixed(2))
+      : 0;
+
+    totalClasses  += s.totalClasses;
+    totalAttended += attended;
+
+    subjectWise.push({
+      subjectId:            s.subjectId,
+      subjectName:          s.subjectName,
+      subjectCode:          s.subjectCode,
+      totalClasses:         s.totalClasses,
+      attendedClasses:      attended,
+      missedClasses:        s.totalClasses - attended,
+      attendancePercentage: percentage,
+      classesNeededFor75:   classesNeededFor75(attended, s.totalClasses),
+    });
+  }
+
+  const attendancePercentage = totalClasses > 0
+    ? parseFloat(((totalAttended / totalClasses) * 100).toFixed(2))
+    : 0;
+
+  return {
+    attendancePercentage,
+    totalClasses,
+    totalAttended,
+    classesMissed:      totalClasses - totalAttended,
+    classesNeededFor75: classesNeededFor75(totalAttended, totalClasses),
+    subjectWise,
+  };
+}
 //  aggregate a student's AcademicRecord docs (one per subject)
 // into one flat summary — mirrors aggregateLiveAttendance's pattern
 // for the attendance side. records must come from .find(), not .findOne()
@@ -121,7 +257,10 @@ module.exports = {
   avg,
   classesNeededFor75,
   createRiskMap,
+  classifySubjects,
+  computePerformanceScore,
   buildStudentAnalytics,
   buildDashboardSummary,
   aggregateAcademicMarks,
+  aggregateLiveAttendance
 };

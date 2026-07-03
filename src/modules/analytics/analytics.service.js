@@ -14,102 +14,11 @@ const {
   buildStudentAnalytics,
   buildDashboardSummary,
   aggregateAcademicMarks,
+  aggregateLiveAttendance
 } = require("./analytics.helper");
 
 
-//  aggregate live attendance for one student 
-async function aggregateLiveAttendance(studentId, classId) {
-  const allSessions = await Session.aggregate([
-    { $match: { classId: new mongoose.Types.ObjectId(classId) } },
-    {
-      $group: {
-        _id:          "$subjectId",
-        totalClasses: { $sum: 1 },
-      },
-    },
-    {
-      $lookup: {
-        from:         "subjects",
-        localField:   "_id",
-        foreignField: "_id",
-        as:           "subject",
-      },
-    },
-    { $unwind: "$subject" },
-    {
-      $project: {
-        subjectId:    "$_id",
-        subjectName:  "$subject.subjectName",
-        subjectCode:  "$subject.subjectCode",
-        totalClasses: 1,
-      },
-    },
-  ]);
 
-  if (!allSessions.length) {
-    return {
-      attendancePercentage: 0,
-      totalClasses:         0,
-      totalAttended:        0,
-      classesMissed:        0,
-      classesNeededFor75:   0,
-      subjectWise:          [],
-    };
-  }
-
-  const attendedSessions = await Record.aggregate([
-    { $match: { studentId: new mongoose.Types.ObjectId(studentId) } },
-    {
-      $group: {
-        _id:             "$subjectId",
-        attendedClasses: { $sum: 1 },
-      },
-    },
-  ]);
-
-  const attendedMap = {};
-  for (const a of attendedSessions) {
-    attendedMap[a._id.toString()] = a.attendedClasses;
-  }
-
-  let totalClasses  = 0;
-  let totalAttended = 0;
-  const subjectWise = [];
-
-  for (const s of allSessions) {
-    const attended   = attendedMap[s.subjectId.toString()] ?? 0;
-    const percentage = s.totalClasses > 0
-      ? parseFloat(((attended / s.totalClasses) * 100).toFixed(2))
-      : 0;
-
-    totalClasses  += s.totalClasses;
-    totalAttended += attended;
-
-    subjectWise.push({
-      subjectId:            s.subjectId,
-      subjectName:          s.subjectName,
-      subjectCode:          s.subjectCode,
-      totalClasses:         s.totalClasses,
-      attendedClasses:      attended,
-      missedClasses:        s.totalClasses - attended,
-      attendancePercentage: percentage,
-      classesNeededFor75:   classesNeededFor75(attended, s.totalClasses),
-    });
-  }
-
-  const attendancePercentage = totalClasses > 0
-    ? parseFloat(((totalAttended / totalClasses) * 100).toFixed(2))
-    : 0;
-
-  return {
-    attendancePercentage,
-    totalClasses,
-    totalAttended,
-    classesMissed:      totalClasses - totalAttended,
-    classesNeededFor75: classesNeededFor75(totalAttended, totalClasses),
-    subjectWise,
-  };
-}
 
 //  STUDENT: own dashboard 
 const getStudentDashboard = async (studentId) => {

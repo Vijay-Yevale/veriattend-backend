@@ -11,10 +11,15 @@ const {
   aggregateLiveAttendance,
   aggregateAcademicMarks,
   computePerformanceScore,
+  buildSubjectPerformance,
   classifySubjects,
 } = require("../modules/analytics/analytics.helper");
 
-// Process one student
+
+// ─────────────────────────────────────────────────────────────
+// Process One Student
+// ─────────────────────────────────────────────────────────────
+
 async function processStudent(student) {
   const studentId = student._id;
   const classId = student.classId;
@@ -26,25 +31,26 @@ async function processStudent(student) {
     );
   }
 
-  // Live attendance + aggregated academic marks
+  // Live attendance + academic records
   const [attendance, academicRecords] = await Promise.all([
     aggregateLiveAttendance(studentId, classId),
     AcademicRecord.find({ studentId }).lean(),
   ]);
 
+  // Overall Academic Summary
   const academic = aggregateAcademicMarks(academicRecords);
 
-  const quizAverage = academic?.quizAverage ?? 0;
-  const assignmentAverage = academic?.assignmentAverage ?? 0;
-  const internalMarks = academic?.internalMarks ?? 0;
+// preserve null so "no marks yet" isn't stored as "scored 0"
+const quizAverage = academic?.quizAverage ?? null;
+const assignmentAverage = academic?.assignmentAverage ?? null;
+const internalMarks = academic?.internalMarks ?? null;
 
-  // Performance score
-  const performanceScore = computePerformanceScore({
-    attendancePercentage: attendance.attendancePercentage,
-    quizAverage,
-    assignmentAverage,
-    internalMarks,
-  });
+const performanceScore = computePerformanceScore({
+  attendancePercentage: attendance.attendancePercentage,
+  quizAverage,
+  assignmentAverage,
+  internalMarks,
+});
 
   // ML Prediction
   const {
@@ -60,16 +66,35 @@ async function processStudent(student) {
     performanceScore,
   });
 
-  // Weak / Strong subjects
-  const { weak, strong } = classifySubjects(attendance.subjectWise);
+  // ----------------------------------------------------------
+  // Subject Wise Performance
+  // ----------------------------------------------------------
 
+  const academicMap = new Map(
+    academicRecords.map((record) => [
+      record.subjectId.toString(),
+      record,
+    ])
+  );
+
+  const subjectStats = attendance.subjectWise.map((subject) =>
+    buildSubjectPerformance({
+      attendance: subject,
+      academic: academicMap.get(subject.subjectId.toString()),
+    })
+  );
+
+  const { weak, strong } = classifySubjects(subjectStats);
+
+  // ----------------------------------------------------------
   // Save Risk Profile
+  // ----------------------------------------------------------
+
   await RiskProfile.findOneAndUpdate(
     { studentId },
     {
       $set: {
         studentId,
-        classId,
 
         attendancePercentage: attendance.attendancePercentage,
 
@@ -92,13 +117,17 @@ async function processStudent(student) {
     },
     {
       upsert: true,
-  returnDocument: "after",
+      returnDocument: "after",
       runValidators: true,
     }
   );
 }
 
-// Main Analytics Job
+
+// ─────────────────────────────────────────────────────────────
+// Analytics Job
+// ─────────────────────────────────────────────────────────────
+
 async function runAnalyticsJob() {
   console.log(
     `[AnalyticsJob] Started at ${new Date().toISOString()}`
@@ -153,8 +182,13 @@ async function runAnalyticsJob() {
   }
 }
 
-// Schedule every 5 hours
+
+// ─────────────────────────────────────────────────────────────
+// Schedule
+// ─────────────────────────────────────────────────────────────
+
 function scheduleAnalyticsJob() {
+  // Every 7 hours
   cron.schedule("* * * * *", async () => {
     try {
       await runAnalyticsJob();
@@ -164,7 +198,7 @@ function scheduleAnalyticsJob() {
   });
 
   console.log(
-    "[AnalyticsJob] Scheduled — runs every 5 hours"
+    "[AnalyticsJob] Scheduled — runs every 7 hours"
   );
 }
 

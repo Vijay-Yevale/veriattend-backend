@@ -5,16 +5,28 @@ const User           = require("../../models/user.model");
 const Session        = require("../../models/attendancesession.model");
 const Record         = require("../../models/attendanceRecord.model");
 const Department     = require("../../models/department.model");
+const TeacherSubject = require("../../models/teacherSubject.model");
 const AcademicRecord = require("../../models/academicRecord.model");
 const RiskProfile    = require("../../models/riskProfile.model");
 
 const {
+ avg,
   classesNeededFor75,
+
   createRiskMap,
+
+  computePerformanceScore,
+  computeSubjectRisk,
+   aggregateSubjectAttendance,
+  classifySubjects,
+
+  buildSubjectPerformance,
+
   buildStudentAnalytics,
   buildDashboardSummary,
+
   aggregateAcademicMarks,
-  aggregateLiveAttendance
+  aggregateLiveAttendance,
 } = require("./analytics.helper");
 
 
@@ -23,7 +35,7 @@ const {
 //  STUDENT: own dashboard 
 const getStudentDashboard = async (studentId) => {
   const student = await User.findById(studentId).lean();
-
+console.log("A");
   if (!student || student.role !== "STUDENT") {
     throw new AppError("Student not found", 404);
   }
@@ -32,40 +44,52 @@ const getStudentDashboard = async (studentId) => {
     throw new AppError("Student is not assigned to any class", 400);
   }
 
-  const [attendance, academicRecords, risk] = await Promise.all([
-    aggregateLiveAttendance(studentId, student.classId),
-    AcademicRecord.find({ studentId }).lean(),
-    RiskProfile.findOne({ studentId }).lean(),
-  ]);
+const [attendance, academicRecords, risk] = await Promise.all([
+  aggregateLiveAttendance(studentId, student.classId),
+  AcademicRecord.find({ studentId }).lean(),
+  RiskProfile.findOne({ studentId })
+    .populate(
+      "weakSubjects.subjectId",
+      "subjectName subjectCode"
+    )
+    .populate(
+      "strongSubjects.subjectId",
+      "subjectName subjectCode"
+    )
+    .lean(),
+]);
+console.log("B");
 
   const academic = aggregateAcademicMarks(academicRecords);
+  console.log("C");
 
-  return {
-    // live attendance — fresh on every request
-    attendance: {
-      attendancePercentage: attendance.attendancePercentage,
-      totalClasses:         attendance.totalClasses,
-      totalAttended:        attendance.totalAttended,
-      classesMissed:        attendance.classesMissed,
-      classesNeededFor75:   attendance.classesNeededFor75,
-      subjectWise:          attendance.subjectWise,
-    },
+const response = {
+  attendance: {
+    attendancePercentage: attendance.attendancePercentage,
+    totalClasses: attendance.totalClasses,
+    totalAttended: attendance.totalAttended,
+    classesMissed: attendance.classesMissed,
+    classesNeededFor75: attendance.classesNeededFor75,
+    subjectWise: attendance.subjectWise,
+  },
 
-    // academic marks — aggregated across every subject's AcademicRecord
-    academicMarks: academic,
+  academicMarks: academic,
 
-    // risk — from last cron run (every 7 hrs)
-    risk: {
-      performanceScore: risk?.performanceScore ?? null,
-      riskLevel:        risk?.riskLevel        ?? null,
-      riskScore:        risk?.riskScore        ?? null,
-      passProbability:  risk?.passProbability  ?? null,
-      weakSubjects:     risk?.weakSubjects     ?? [],
-      strongSubjects:   risk?.strongSubjects   ?? [],
-      predictedBy:      risk?.predictedBy      ?? null,
-      lastUpdated:      risk?.lastUpdated      ?? null,
-    },
-  };
+  risk: {
+    performanceScore: risk?.performanceScore ?? null,
+    riskLevel: risk?.riskLevel ?? null,
+    riskScore: risk?.riskScore ?? null,
+    passProbability: risk?.passProbability ?? null,
+    weakSubjects: risk?.weakSubjects ?? [],
+    strongSubjects: risk?.strongSubjects ?? [],
+    
+    lastUpdated: risk?.lastUpdated ?? null,
+  },
+};
+
+console.log(JSON.stringify(response, null, 2));
+
+return response;
 };
 
 //  TEACHER: class dashboard 
@@ -99,46 +123,111 @@ if(!classExists){
 };
 
 //  TEACHER: one student detail 
-const getStudentDetailForTeacher = async (studentId) => {
+
+
+// TEACHER: Subject-wise Student Analytics
+// TEACHER: Subject-wise Student Analytics
+const getStudentDetailForTeacher = async (studentId, teacherId) => {
+  // Student
   const student = await User.findOne(
-    { _id: studentId, role: "STUDENT" },
-    { userName: 1, PRN: 1, classId: 1 }
+    {
+      _id: studentId,
+      role: "STUDENT",
+    },
+    {
+      userName: 1,
+      PRN: 1,
+      classId: 1,
+    }
   ).lean();
 
   if (!student) {
     throw new AppError("Student not found", 404);
   }
 
-  const [attendance, academicRecords, risk] = await Promise.all([
-    aggregateLiveAttendance(studentId, student.classId),
-    AcademicRecord.find({ studentId }).lean(),
-    RiskProfile.findOne({ studentId }).lean(),
-  ]);
+  // Teacher assignment
+  const teacherSubject = await TeacherSubject.findOne({
+    teacherId,
+    classId: student.classId,
+  })
+    .populate("subjectId", "subjectName subjectCode")
+    .select("subjectId")
+    .lean();
 
-  const academic = aggregateAcademicMarks(academicRecords);
+  if (!teacherSubject) {
+    throw new AppError(
+      "You are not assigned to teach this student's class",
+      403
+    );
+  }
+
+  const subject = teacherSubject.subjectId;
+
+  // Attendance for this subject
+  const attendance = await aggregateSubjectAttendance(
+    studentId,
+    student.classId,
+    subject._id
+  );
+
+  // Academic record for this subject
+  const academicRecord = await AcademicRecord.findOne({
+    studentId,
+    classId: student.classId,
+    subjectId: subject._id,
+  }).lean();
+
+  const quizAverage = avg(academicRecord?.quizMarks ?? []);
+  const assignmentAverage = avg(
+    academicRecord?.assignmentMarks ?? []
+  );
+  const internalMarks = academicRecord?.internalMarks ?? null;
+
+  // Subject Performance
+  // computePerformanceScore already treats null as 0 internally,
+  // so we pass the raw (possibly null) values straight through.
+  const performanceScore = computePerformanceScore({
+    attendancePercentage: attendance.attendancePercentage,
+    quizAverage,
+    assignmentAverage,
+    internalMarks,
+  });
+
+  // Subject Risk
+  const riskLevel = computeSubjectRisk(performanceScore);
 
   return {
-    studentId: studentId,
-    userName:  student.userName,
-    PRN:       student.PRN,
+    studentId: student._id,
+    userName: student.userName,
+    PRN: student.PRN,
 
-    attendance: {
-      attendancePercentage: attendance.attendancePercentage,
-      totalClasses:         attendance.totalClasses,
-      totalAttended:        attendance.totalAttended,
-      classesMissed:        attendance.classesMissed,
-      subjectWise:          attendance.subjectWise,
-    },
+    subject: {
+      subjectId: subject._id,
+      subjectName: subject.subjectName,
+      subjectCode: subject.subjectCode,
 
-    academicMarks: academic,
+      attendance: {
+        attendancePercentage: attendance.attendancePercentage,
+        totalClasses: attendance.totalClasses,
+        totalAttended: attendance.totalAttended,
+        classesMissed: attendance.classesMissed,
+        classesNeededFor75: attendance.classesNeededFor75,
+      },
 
-    risk: {
-      performanceScore: risk?.performanceScore ?? null,
-      riskLevel:        risk?.riskLevel        ?? null,
-      passProbability:  risk?.passProbability  ?? null,
-      weakSubjects:     risk?.weakSubjects     ?? [],
-      strongSubjects:   risk?.strongSubjects   ?? [],
-      lastUpdated:      risk?.lastUpdated      ?? null,
+      academicMarks: {
+        quizMarks: academicRecord?.quizMarks ?? [],
+        quizAverage,
+
+        assignmentMarks: academicRecord?.assignmentMarks ?? [],
+        assignmentAverage,
+
+        internalMarks,
+      },
+
+      risk: {
+        performanceScore,
+        riskLevel,
+      },
     },
   };
 };
@@ -177,5 +266,6 @@ module.exports = {
   getStudentDashboard,
   getClassDashboard,
   getStudentDetailForTeacher,
+ 
   getDepartmentAnalytics,
 };

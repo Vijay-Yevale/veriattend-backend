@@ -37,5 +37,6 @@ teacherSubjectSchema.index(
   { unique: true }
 );
 
-const TeacherSubject = mongoose.model("TeacherSubject", teacherSubjectSchema);
-module.exports = TeacherSubject;
+module.exports =
+  mongoose.models.TeacherSubject ||
+  mongoose.model("TeacherSubject", teacherSubjectSchema);

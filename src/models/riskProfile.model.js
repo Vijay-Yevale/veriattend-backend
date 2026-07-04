@@ -6,17 +6,43 @@ const subjectStatSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
       required: true,
+      index: true,
     },
-    subjectName: {
-      type: String,
-      required: true,
-    },
+
     attendancePercentage: {
       type: Number,
       required: true,
     },
+
+    quizAverage: {
+      type: Number,
+      default: null,
+    },
+
+    assignmentAverage: {
+      type: Number,
+      default: null,
+    },
+
+    internalMarks: {
+      type: Number,
+      default: null,
+    },
+
+    performanceScore: {
+      type: Number,
+      required: true,
+    },
+
+    riskLevel: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+      required: true,
+    },
   },
-  { _id: false }
+  {
+    _id: false,
+  }
 );
 
 const riskProfileSchema = new mongoose.Schema(
@@ -25,15 +51,9 @@ const riskProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true, 
+      unique: true,
+      index: true,
     },
-
-    classId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Class",
-      required: true,
-    },
-
 
     attendancePercentage: {
       type: Number,
@@ -51,57 +71,57 @@ const riskProfileSchema = new mongoose.Schema(
     },
 
     internalMarks: {
-      type: Number, // stored as-is (out of 30)
+      type: Number,
       default: null,
     },
 
-    //  computed by Node 
     performanceScore: {
-      type: Number, // 0 - 100
+      type: Number,
       default: null,
     },
 
-    //  from Flask ML service
     riskLevel: {
       type: String,
       enum: ["LOW", "MEDIUM", "HIGH"],
       default: null,
+      index: true,
     },
 
     riskScore: {
-      type: Number, // raw probability of HIGH risk (0.0 - 1.0)
+      type: Number,
       default: null,
     },
 
     passProbability: {
-      type: Number, // P(LOW) + P(MEDIUM) → 0.0 to 1.0
+      type: Number,
       default: null,
     },
 
-    //  subject breakdown
     weakSubjects: {
       type: [subjectStatSchema],
-      default: [], // attendance < 75%
+      default: [],
     },
 
     strongSubjects: {
       type: [subjectStatSchema],
-      default: [], // attendance >= 85%
+      default: [],
     },
-
 
     predictedBy: {
       type: String,
       enum: ["ML", "FALLBACK"],
-      default: null, // ML = Flask responded, FALLBACK = Flask was down
+      default: null,
     },
 
     lastUpdated: {
       type: Date,
-      default: null, // timestamp of last cron run
+      default: Date.now,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    versionKey: false,
+  }
 );
 
 module.exports = mongoose.model("RiskProfile", riskProfileSchema);

@@ -7,9 +7,9 @@ const {
     createTeacher,
     createClass,
     createSubject,
-    assignClassToStudent,
+     bulkAssignClassToStudents,
     assignTeacherToSubject,
-
+     getDepartmentDetails,
     getAllDepartments,
     getTeachers,
     getClasses,

@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 const Session = require("../../models/attendancesession.model");
 const Record = require("../../models/attendanceRecord.model");
 
+const QUIZ_MAX = 10;
+const ASSIGNMENT_MAX = 25;
+const INTERNAL_MAX = 30;
 
-//  constants 
-const WEAK_SUBJECT_THRESHOLD   = 75;
-const STRONG_SUBJECT_THRESHOLD = 85;
 
-// ── pure utility functions ────────────────────────────────────────────────────
+//  pure utility functions
 
 function avg(arr) {
   if (!arr || arr.length === 0) return null;
@@ -16,38 +16,120 @@ function avg(arr) {
   );
 }
 
+function computeSubjectRisk(performanceScore) {
+  if (performanceScore >= 80) {
+    return "LOW";
+  }
+
+  if (performanceScore >= 60) {
+    return "MEDIUM";
+  }
+
+  return "HIGH";
+}
+// Aggregate attendance for one student in one subject
+async function aggregateSubjectAttendance(studentId, classId, subjectId) {
+  // Total sessions conducted for this class & subject
+  const totalClasses = await Session.countDocuments({
+    classId,
+    subjectId,
+  });
+
+  // Sessions attended by the student
+  const totalAttended = await Record.countDocuments({
+    studentId,
+    classId,
+    subjectId,
+  });
+
+  const attendancePercentage =
+    totalClasses > 0
+      ? parseFloat(((totalAttended / totalClasses) * 100).toFixed(2))
+      : 0;
+
+  return {
+    attendancePercentage,
+    totalClasses,
+    totalAttended,
+    classesMissed: totalClasses - totalAttended,
+    classesNeededFor75: classesNeededFor75(
+      totalAttended,
+      totalClasses,
+    ),
+  };
+}
+
 function computePerformanceScore({
   attendancePercentage,
   quizAverage,
   assignmentAverage,
   internalMarks,
 }) {
-  const internalNormalized = ((internalMarks ?? 0) / 30) * 100;
+  const quizNormalized =
+  ((quizAverage ?? 0) / QUIZ_MAX) * 100;
+
+const assignmentNormalized =
+  ((assignmentAverage ?? 0) / ASSIGNMENT_MAX) * 100;
+
+const internalNormalized =
+  ((internalMarks ?? 0) / INTERNAL_MAX) * 100;
 
   return parseFloat(
     (
       attendancePercentage * 0.20 +
-      quizAverage          * 0.25 +
-      assignmentAverage    * 0.25 +
-      internalNormalized   * 0.30
+      quizNormalized * 0.25 +
+      assignmentNormalized * 0.25 +
+      internalNormalized * 0.30
     ).toFixed(2)
   );
 }
 
 //  utility: classify subjects 
-function classifySubjects(subjectWise) {
-  const weak   = [];
+function classifySubjects(subjectStats) {
+  const weak = [];
   const strong = [];
 
-  for (const subject of subjectWise) {
-    if (subject.attendancePercentage < WEAK_SUBJECT_THRESHOLD) {
+  for (const subject of subjectStats) {
+    if (subject.riskLevel === "HIGH") {
       weak.push(subject);
-    } else if (subject.attendancePercentage >= STRONG_SUBJECT_THRESHOLD) {
+    } else if (subject.riskLevel === "LOW") {
       strong.push(subject);
     }
   }
 
-  return { weak, strong };
+  return {
+    weak,
+    strong,
+  };
+}
+
+function buildSubjectPerformance({
+  attendance,
+  academic,
+}) {
+  const quizAverage = avg(academic?.quizMarks ?? []);
+  const assignmentAverage = avg(academic?.assignmentMarks ?? []);
+  const internalMarks = academic?.internalMarks ?? null;
+
+  const performanceScore = computePerformanceScore({
+    attendancePercentage: attendance.attendancePercentage,
+    quizAverage: quizAverage ?? 0,
+    assignmentAverage: assignmentAverage ?? 0,
+    internalMarks: internalMarks ?? 0,
+  });
+
+  return {
+    subjectId: attendance.subjectId,
+  
+    attendancePercentage: attendance.attendancePercentage,
+
+    quizAverage,
+    assignmentAverage,
+    internalMarks,
+
+    performanceScore,
+    riskLevel: computeSubjectRisk(performanceScore),
+  };
 }
 
 function classesNeededFor75(attended, total) {
@@ -256,11 +338,19 @@ function buildDashboardSummary(students) {
 module.exports = {
   avg,
   classesNeededFor75,
+
   createRiskMap,
-  classifySubjects,
+
   computePerformanceScore,
+  computeSubjectRisk,
+   aggregateSubjectAttendance,
+  classifySubjects,
+
+  buildSubjectPerformance,
+
   buildStudentAnalytics,
   buildDashboardSummary,
+
   aggregateAcademicMarks,
-  aggregateLiveAttendance
+  aggregateLiveAttendance,
 };

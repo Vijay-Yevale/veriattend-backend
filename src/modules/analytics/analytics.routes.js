@@ -4,7 +4,7 @@ const {
   getMyDashboard,
   getClassAnalytics,
   getStudentDetail,
-  getDepartmentAnalytics,
+  getDepartmentAnalytic,
 } = require("./analytics.controller");
 
 const {
@@ -48,7 +48,7 @@ analyticsRouter.get(
   "/:departmentId",
   validate(departmentIdParamSchema, "params"),
   allowOnly("HOD", "SUPER_ADMIN"),
-  getDepartmentAnalytics
+  getDepartmentAnalytic
 );
 
 module.exports = analyticsRouter;

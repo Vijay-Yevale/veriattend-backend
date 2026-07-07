@@ -35,91 +35,202 @@ const {
 //  STUDENT: own dashboard 
 const getStudentDashboard = async (studentId) => {
   const student = await User.findById(studentId).lean();
-console.log("A");
+  console.log("A");
+
   if (!student || student.role !== "STUDENT") {
     throw new AppError("Student not found", 404);
   }
 
+  // Student registered but HOD hasn't assigned a class yet.
   if (!student.classId) {
-    throw new AppError("Student is not assigned to any class", 400);
+    return {
+      attendance: {
+        attendancePercentage: 0,
+        totalClasses: 0,
+        totalAttended: 0,
+        classesMissed: 0,
+        classesNeededFor75: 0,
+        subjectWise: [],
+      },
+
+      academicMarks: null,
+
+      risk: {
+        performanceScore: null,
+        riskLevel: null,
+        riskScore: null,
+        passProbability: null,
+        weakSubjects: [],
+        strongSubjects: [],
+        lastUpdated: null,
+      },
+    };
   }
 
-const [attendance, academicRecords, risk] = await Promise.all([
-  aggregateLiveAttendance(studentId, student.classId),
-  AcademicRecord.find({ studentId }).lean(),
-  RiskProfile.findOne({ studentId })
-    .populate(
-      "weakSubjects.subjectId",
-      "subjectName subjectCode"
-    )
-    .populate(
-      "strongSubjects.subjectId",
-      "subjectName subjectCode"
-    )
-    .lean(),
-]);
-console.log("B");
+  const [attendance, academicRecords, risk] = await Promise.all([
+    aggregateLiveAttendance(studentId, student.classId),
+    AcademicRecord.find({ studentId }).lean(),
+    RiskProfile.findOne({ studentId })
+      .populate(
+        "weakSubjects.subjectId",
+        "subjectName subjectCode"
+      )
+      .populate(
+        "strongSubjects.subjectId",
+        "subjectName subjectCode"
+      )
+      .lean(),
+  ]);
+
+  console.log("B");
 
   const academic = aggregateAcademicMarks(academicRecords);
+
   console.log("C");
 
-const response = {
-  attendance: {
-    attendancePercentage: attendance.attendancePercentage,
-    totalClasses: attendance.totalClasses,
-    totalAttended: attendance.totalAttended,
-    classesMissed: attendance.classesMissed,
-    classesNeededFor75: attendance.classesNeededFor75,
-    subjectWise: attendance.subjectWise,
-  },
+  const response = {
+    attendance: {
+      attendancePercentage: attendance.attendancePercentage,
+      totalClasses: attendance.totalClasses,
+      totalAttended: attendance.totalAttended,
+      classesMissed: attendance.classesMissed,
+      classesNeededFor75: attendance.classesNeededFor75,
+      subjectWise: attendance.subjectWise,
+    },
 
-  academicMarks: academic,
+    academicMarks: academic,
 
-  risk: {
-    performanceScore: risk?.performanceScore ?? null,
-    riskLevel: risk?.riskLevel ?? null,
-    riskScore: risk?.riskScore ?? null,
-    passProbability: risk?.passProbability ?? null,
-    weakSubjects: risk?.weakSubjects ?? [],
-    strongSubjects: risk?.strongSubjects ?? [],
-    
-    lastUpdated: risk?.lastUpdated ?? null,
-  },
-};
+    risk: {
+      performanceScore: risk?.performanceScore ?? null,
+      riskLevel: risk?.riskLevel ?? null,
+      riskScore: risk?.riskScore ?? null,
+      passProbability: risk?.passProbability ?? null,
+      weakSubjects: risk?.weakSubjects ?? [],
+      strongSubjects: risk?.strongSubjects ?? [],
+      lastUpdated: risk?.lastUpdated ?? null,
+    },
+  };
 
-console.log(JSON.stringify(response, null, 2));
+  console.log(JSON.stringify(response, null, 2));
 
-return response;
+  return response;
 };
 
 //  TEACHER: class dashboard 
-const getClassDashboard = async (classId) => {
-const classExists = await Class.findById(classId);
-if(!classExists){
-  throw new AppError("class doesn't exists",404);
-}
+const getClassDashboard = async (
+  classId,
+  currentUser,
+  subjectId = null
+) => {
+  // -------------------------------
+  // Validate Class
+  // -------------------------------
+  const classData = await Class.findById(classId).lean();
+
+  if (!classData) {
+    throw new AppError("Class doesn't exist", 404);
+  }
+
+ 
+  // Authorization
+
+  switch (currentUser.role) {
+    case "TEACHER": {
+      const assignmentQuery = {
+        teacherId: currentUser._id,
+        classId,
+        isActive: true,
+      };
+
+      // Subject dashboard
+      if (subjectId) {
+        assignmentQuery.subjectId = subjectId;
+      }
+
+      const assignment = await TeacherSubject.findOne(
+        assignmentQuery
+      );
+
+      if (!assignment) {
+        throw new AppError(
+          "You are not authorized to access this analytics",
+          403
+        );
+      }
+
+      break;
+    }
+
+    case "HOD": {
+      if (
+        classData.departmentId.toString() !==
+        currentUser.departmentId.toString()
+      ) {
+        throw new AppError(
+          "You are not authorized to access this class",
+          403
+        );
+      }
+
+      break;
+    }
+
+    case "SUPER_ADMIN":
+      break;
+
+    default:
+      throw new AppError("Unauthorized", 403);
+  }
+
+ 
+  // Students
+
   const students = await User.find(
-    { classId, role: "STUDENT" },
-    { _id: 1, userName: 1, PRN: 1,classId:1 }
+    {
+      classId,
+      role: "STUDENT",
+    },
+    {
+      _id: 1,
+      userName: 1,
+      PRN: 1,
+      classId: 1,
+    }
   ).lean();
 
   if (!students.length) {
-    throw new AppError("No students found in this class", 404);
+    throw new AppError(
+      "No students found in this class",
+      404
+    );
   }
 
-  const studentIds   = students.map((s) => s._id);
-  const riskProfiles = await RiskProfile.find(
-    { studentId: { $in: studentIds } }
-  ).lean();
+  const studentIds = students.map(s => s._id);
 
-  const riskMap      = createRiskMap(riskProfiles);
-  const studentList  = students.map((s) =>
-    buildStudentAnalytics(s, riskMap[s._id.toString()])
+  
+  // Risk Profiles
+ 
+  const riskProfiles = await RiskProfile.find({
+    studentId: { $in: studentIds },
+  }).lean();
+
+  const riskMap = createRiskMap(riskProfiles);
+
+  const studentList = students.map(student =>
+    buildStudentAnalytics(
+      student,
+      riskMap[student._id.toString()]
+    )
   );
 
-  const { summary, filters } = buildDashboardSummary(studentList);
+  // Dashboard Summary
 
-  return { summary, students: studentList, filters };
+  const { summary } =
+    buildDashboardSummary(studentList);
+
+  return {
+    summary,
+  };
 };
 
 //  TEACHER: one student detail 

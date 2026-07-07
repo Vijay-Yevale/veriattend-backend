@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   getMyDashboard,
+  getStudentDashboardById,
   getClassAnalytics,
   getStudentDetail,
   getDepartmentAnalytic,
@@ -11,6 +12,7 @@ const {
   classIdParamSchema,
   departmentIdParamSchema,
   studentIdParamSchema,
+  classDashboardQuerySchema
 } = require("./analytics.validator");
 
 const authMiddleware = require("../../middleware/auth.middleware");
@@ -28,11 +30,18 @@ analyticsRouter.get(
   getMyDashboard
 );
 
+
+//hod and superadmin
+analyticsRouter.get("/students/:studentId/dashboard", 
+  validate(studentIdParamSchema, "params"), 
+  allowOnly("SUPER_ADMIN", "HOD"), getStudentDashboardById);
+
 // Teacher Routes
 analyticsRouter.get(
-  "/teacher/class/:classId",
+  "/class/:classId",
   validate(classIdParamSchema, "params"),
-  allowOnly("TEACHER", "HOD"),
+  validate(classDashboardQuerySchema, "query"),
+  allowOnly("TEACHER", "HOD", "SUPER_ADMIN"),
   getClassAnalytics
 );
 

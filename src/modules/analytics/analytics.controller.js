@@ -23,12 +23,32 @@ const getMyDashboard = catchAsync(async (req, res) => {
   );
 });
 
+//hod,super_admin can access
+
+const getStudentDashboardById = catchAsync(async (req, res) => {
+  const { studentId } = req.params;
+
+  const data = await getStudentDashboard(studentId);
+
+  sendResponse(
+    res,
+    200,
+    "Student dashboard fetched successfully",
+    data
+  );
+});
+
 // Teacher Class Analytics
 // GET /api/analytics/teacher/class/:classId
 const getClassAnalytics = catchAsync(async (req, res) => {
   const { classId } = req.params;
+  const { subjectId } = req.query;
 
-  const data = await getClassDashboard(classId);
+  const data = await getClassDashboard(
+    classId,
+    req.user,
+    subjectId
+  );
 
   sendResponse(
     res,
@@ -70,6 +90,7 @@ const getDepartmentAnalytic = catchAsync(async (req, res) => {
 
 module.exports = {
   getMyDashboard,
+  getStudentDashboardById,
   getClassAnalytics,
   getStudentDetail,
   getDepartmentAnalytic,

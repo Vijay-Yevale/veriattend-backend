@@ -1,9 +1,8 @@
 const express    = require("express");
 const rateLimit  = require("express-rate-limit");
-const helmet         = require("helmet");
-const cors           = require("cors");
+const helmet     = require("helmet");
+const cors       = require("cors");
 const app        = express();
-
 
 //  routers 
 const authRouter       = require("./src/modules/auth/auth.routes");
@@ -39,8 +38,6 @@ const authLimiter = rateLimit({
   legacyHeaders:   false,
 });
 
-
-
 const sanitizeInput = (obj) => {
   for (const key in obj) {
     if (key.startsWith("$") || key.includes(".")) {
@@ -52,17 +49,22 @@ const sanitizeInput = (obj) => {
 };
 
 //  middleware 
-app.use(helmet());          
-app.use(cors());              
+app.use(helmet());
+app.use(cors());
+
+// Body parsers must run BEFORE sanitizeInput, or req.body is still
+// undefined when sanitizeInput checks it — nothing gets sanitized.
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use((req, res, next) => {
   if (req.body)   sanitizeInput(req.body);
   if (req.params) sanitizeInput(req.params);
   next();
 });
+
 app.use(globalLimiter);
 app.use("/api/auth/login", authLimiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 //  routes 
 app.use("/api/auth",       authRouter);

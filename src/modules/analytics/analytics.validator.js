@@ -36,6 +36,23 @@ const departmentIdParamSchema = Joi.object({
   "object.base": "Route parameters must be a valid object.",
 });
 
+const classDashboardQuerySchema = Joi.object({
+  subjectId: Joi.string()
+    .hex()
+    .length(24)
+    .optional()
+    .messages({
+      "string.base": "Subject ID must be a string.",
+      "string.empty": "Subject ID cannot be empty.",
+      "string.hex":
+        "Subject ID must be a valid MongoDB ObjectId (24 hexadecimal characters).",
+      "string.length":
+        "Subject ID must be exactly 24 characters long.",
+    }),
+}).messages({
+  "object.base": "Query parameters must be a valid object.",
+});
+
 
 
 const studentIdParamSchema = Joi.object({
@@ -49,4 +66,5 @@ module.exports = {
   classSubjectParamSchema,
   departmentIdParamSchema,
   studentIdParamSchema,
+  classDashboardQuerySchema
 };

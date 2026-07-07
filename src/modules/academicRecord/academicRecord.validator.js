@@ -100,9 +100,16 @@ const bulkMarksSchema = Joi.object({
     }),
 });
 
+const studentIdParamSchema = Joi.object({
+  studentId: objectId.label("Student ID"),
+}).messages({
+  "object.base": "Route parameters must be a valid object.",
+});
+
 module.exports = {
   addQuizMarkSchema,
   addAssignmentMarkSchema,
   setInternalMarksSchema,
   bulkMarksSchema,
+  studentIdParamSchema
 };

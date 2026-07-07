@@ -236,26 +236,41 @@ async function aggregateLiveAttendance(studentId, classId) {
 // into one flat summary — mirrors aggregateLiveAttendance's pattern
 // for the attendance side. records must come from .find(), not .findOne()
 function aggregateAcademicMarks(records) {
-  if (!records || !records.length) return null;
+  // No academic records yet
+  if (!records || records.length === 0) {
+    return {
+      quizMarks: [],
+      quizAverage: null,
+      assignmentMarks: [],
+      assignmentAverage: null,
+      internalMarks: null,
+    };
+  }
 
-  const allQuizMarks       = [];
+  const allQuizMarks = [];
   const allAssignmentMarks = [];
-  const internalMarksList  = [];
+  const internalMarksList = [];
 
   for (const record of records) {
-    if (record.quizMarks?.length) allQuizMarks.push(...record.quizMarks);
-    if (record.assignmentMarks?.length) allAssignmentMarks.push(...record.assignmentMarks);
+    if (record.quizMarks?.length) {
+      allQuizMarks.push(...record.quizMarks);
+    }
+
+    if (record.assignmentMarks?.length) {
+      allAssignmentMarks.push(...record.assignmentMarks);
+    }
+
     if (record.internalMarks !== null && record.internalMarks !== undefined) {
       internalMarksList.push(record.internalMarks);
     }
   }
 
   return {
-    quizMarks:         allQuizMarks,
-    quizAverage:       avg(allQuizMarks),
-    assignmentMarks:   allAssignmentMarks,
+    quizMarks: allQuizMarks,
+    quizAverage: avg(allQuizMarks),
+    assignmentMarks: allAssignmentMarks,
     assignmentAverage: avg(allAssignmentMarks),
-    internalMarks:     avg(internalMarksList),
+    internalMarks: avg(internalMarksList),
   };
 }
 

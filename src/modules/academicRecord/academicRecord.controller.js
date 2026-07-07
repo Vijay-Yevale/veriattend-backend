@@ -79,6 +79,19 @@ const getStudentMarksController = catchAsync(async (req, res) => {
   sendResponse(res, 200, "Student marks fetched successfully", data);
 });
 
+const getStudentMarksById = catchAsync(async (req, res) => {
+  const { studentId } = req.params;
+
+  const data = await getStudentMarks(studentId);
+
+  sendResponse(
+    res,
+    200,
+    "Student marks fetched successfully",
+    data
+  );
+});
+
 module.exports = {
   addQuizMarkController,
   addAssignmentMarkController,
@@ -86,4 +99,5 @@ module.exports = {
   bulkSubmitMarksController,
   getClassMarksController,
   getStudentMarksController,
+  getStudentMarksById
 };

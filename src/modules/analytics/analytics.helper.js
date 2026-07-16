@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Session = require("../../models/attendancesession.model");
 const Record = require("../../models/attendanceRecord.model");
+const TeacherSubject = require("../../models/teachersubject.model");
 
 const QUIZ_MAX = 10;
 const ASSIGNMENT_MAX = 25;
@@ -27,15 +28,79 @@ function computeSubjectRisk(performanceScore) {
 
   return "HIGH";
 }
-// Aggregate attendance for one student in one subject
-async function aggregateSubjectAttendance(studentId, classId, subjectId) {
-  // Total sessions conducted for this class & subject
+
+// Aggregate attendance for one subject across the entire class
+async function aggregateSubjectAttendanceForClass(
+  classId,
+  subjectId
+) {
+  // Total sessions conducted for this subject
   const totalClasses = await Session.countDocuments({
     classId,
     subjectId,
   });
 
-  // Sessions attended by the student
+  // Attendance count grouped by student
+  const attended = await Record.aggregate([
+    {
+      $match: {
+        classId: new mongoose.Types.ObjectId(classId),
+        subjectId: new mongoose.Types.ObjectId(subjectId),
+      },
+    },
+    {
+      $group: {
+        _id: "$studentId",
+        totalAttended: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const attendanceMap = {};
+
+  for (const student of attended) {
+    const totalAttended = student.totalAttended;
+
+    attendanceMap[student._id.toString()] = {
+      subjectId,
+
+      attendancePercentage:
+        totalClasses > 0
+          ? parseFloat(
+              ((totalAttended / totalClasses) * 100).toFixed(2)
+            )
+          : 0,
+
+      totalClasses,
+
+      totalAttended,
+
+      classesMissed: totalClasses - totalAttended,
+
+      classesNeededFor75: classesNeededFor75(
+        totalAttended,
+        totalClasses
+      ),
+    };
+  }
+
+  return {
+    totalClasses,
+    attendanceMap,
+  };
+}
+
+// Aggregate attendance for a single student in a single subject
+async function aggregateSubjectAttendance(
+  studentId,
+  classId,
+  subjectId
+) {
+  const totalClasses = await Session.countDocuments({
+    classId,
+    subjectId,
+  });
+
   const totalAttended = await Record.countDocuments({
     studentId,
     classId,
@@ -44,7 +109,9 @@ async function aggregateSubjectAttendance(studentId, classId, subjectId) {
 
   const attendancePercentage =
     totalClasses > 0
-      ? parseFloat(((totalAttended / totalClasses) * 100).toFixed(2))
+      ? parseFloat(
+          ((totalAttended / totalClasses) * 100).toFixed(2)
+        )
       : 0;
 
   return {
@@ -54,7 +121,7 @@ async function aggregateSubjectAttendance(studentId, classId, subjectId) {
     classesMissed: totalClasses - totalAttended,
     classesNeededFor75: classesNeededFor75(
       totalAttended,
-      totalClasses,
+      totalClasses
     ),
   };
 }
@@ -301,6 +368,23 @@ function buildStudentAnalytics(student, risk) {
   };
 }
 
+function buildDashboardStudent(student, risk) {
+  return {
+    studentId: student._id,
+    userName: student.userName,
+    PRN: student.PRN,
+
+    attendancePercentage:
+      risk?.attendancePercentage ?? null,
+
+    performanceScore:
+      risk?.performanceScore ?? null,
+
+    riskLevel:
+      risk?.riskLevel ?? null,
+  };
+}
+
 //  build summary + filters from mapped student list 
 // used by getClassDashboard + getDepartmentDashboard
 function buildDashboardSummary(students) {
@@ -344,11 +428,94 @@ function buildDashboardSummary(students) {
     // only IDs in filters — frontend uses these to highlight from students array
     filters: {
       highRisk:   highRisk.map((s) => s.studentId),
+      lowRisk: lowRisk.map(s => s.studentId),
       mediumRisk: mediumRisk.map((s) => s.studentId),
       defaulters: defaulters.map((s) => s.studentId),
     },
   };
 }
+
+async function getAvailableSubjects(
+  classId,
+  currentUser,
+   isClassTeacher
+) {
+  let assignments;
+
+
+
+  switch (currentUser.role) {
+    case "TEACHER":
+      if (isClassTeacher) {
+        // Class Teacher can see all subjects in the class
+        assignments = await TeacherSubject.find({
+          classId,
+          isActive: true,
+        })
+          .populate(
+            "subjectId",
+            "subjectName subjectCode"
+          )
+          .lean();
+      } else {
+        // Subject Teacher sees only assigned subjects
+        assignments = await TeacherSubject.find({
+          teacherId: currentUser._id,
+          classId,
+          isActive: true,
+        })
+          .populate(
+            "subjectId",
+            "subjectName subjectCode"
+          )
+          .lean();
+      }
+      break;
+
+    case "HOD":
+    case "SUPER_ADMIN":
+      assignments = await TeacherSubject.find({
+        classId,
+        isActive: true,
+      })
+        .populate(
+          "subjectId",
+          "subjectName subjectCode"
+        )
+        .lean();
+      break;
+
+    default:
+      return [];
+  }
+
+  // Remove duplicate subjects
+  const subjectMap = new Map();
+
+  for (const assignment of assignments) {
+    const subject = assignment.subjectId;
+
+    if (!subject) continue;
+
+    subjectMap.set(subject._id.toString(), {
+      subjectId: subject._id,
+      subjectName: subject.subjectName,
+      subjectCode: subject.subjectCode,
+    });
+  }
+
+  return [...subjectMap.values()];
+}
+
+const buildSubjectInfo = (subjectAssignment) => ({
+  subjectId: subjectAssignment.subjectId._id,
+  subjectName: subjectAssignment.subjectId.subjectName,
+  subjectCode: subjectAssignment.subjectId.subjectCode,
+  teacher: {
+    teacherId: subjectAssignment.teacherId._id,
+    userName: subjectAssignment.teacherId.userName,
+  },
+});
 
 module.exports = {
   avg,
@@ -358,14 +525,18 @@ module.exports = {
 
   computePerformanceScore,
   computeSubjectRisk,
-   aggregateSubjectAttendance,
+    aggregateSubjectAttendanceForClass,
+    aggregateSubjectAttendance,
   classifySubjects,
 
   buildSubjectPerformance,
+  buildDashboardStudent,
 
   buildStudentAnalytics,
   buildDashboardSummary,
 
   aggregateAcademicMarks,
   aggregateLiveAttendance,
+  getAvailableSubjects,
+  buildSubjectInfo
 };

@@ -31,7 +31,7 @@ const {
 
   // GET
   getDepartments,
-  departmentDetails,
+
   getTeacher,
   getClass,
   getSubject,
@@ -67,12 +67,7 @@ adminRouter.get(
   getDepartments
 );
 
-adminRouter.get(
-  "/departments/:departmentId",
-  validate(departmentIdParamSchema, "params"),
-  allowOnly("SUPER_ADMIN"),
-  departmentDetails
-);
+
 
 
 // HOD

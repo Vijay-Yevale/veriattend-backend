@@ -6,7 +6,7 @@ const classSchema = new mongoose.Schema(
       type: String,
       required: [true, "Class name required"],
       trim: true,
-     
+
     },
 
     departmentId: {
@@ -26,6 +26,11 @@ const classSchema = new mongoose.Schema(
       required: [true, "Semester is required"],
       min: 1,
       max: 8,
+    },
+    classTeacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
   },
   {

@@ -189,7 +189,7 @@ async function runAnalyticsJob() {
 
 function scheduleAnalyticsJob() {
   // Every 7 hours
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("* */5 * * *", async () => {
     try {
       await runAnalyticsJob();
     } catch (err) {

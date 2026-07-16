@@ -34,6 +34,7 @@ const registerUser = async ({
 
   const deptCode = match[1];
   const department = await Department.findOne({ code: deptCode });
+
   if (!department) {
     throw new AppError("Department not found for PRN code", 400);
   }
@@ -50,15 +51,21 @@ const registerUser = async ({
     classId: null,
   });
 
-
   const fullUser = await User.findById(newUser._id)
-    .populate('departmentId', 'name code')
-    .populate('classId', 'className semester academicYear');
+    .populate("departmentId", "name code")
+    .populate(
+      "classId",
+      "className departmentId semester academicYear classTeacherId"
+    );
 
   fullUser.password = undefined;
+
   const token = generateToken(fullUser._id);
 
-  return { user: fullUser, token };
+  return {
+    user: fullUser,
+    token,
+  };
 };
 
 // LOGIN USER
@@ -67,32 +74,44 @@ const loginUser = async ({ email, password }) => {
     throw new AppError("Invalid credentials", 400);
   }
 
- 
-  const user = await User.findOne({ email: email.trim().toLowerCase() })
+  const user = await User.findOne({
+    email: email.trim().toLowerCase(),
+  })
     .select("+password")
-    .populate('departmentId', 'name code')
-    .populate('classId', 'className semester academicYear');
+    .populate("departmentId", "name code")
+    .populate(
+      "classId",
+      "className departmentId semester academicYear classTeacherId"
+    );
 
   if (!user) {
     throw new AppError("Invalid email or password", 401);
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
+
   if (!isMatch) {
     throw new AppError("Invalid email or password", 401);
   }
 
   user.password = undefined;
+
   const token = generateToken(user._id);
 
-  return { user, token };
+  return {
+    user,
+    token,
+  };
 };
 
 // GET ME
 const getMe = async ({ userId }) => {
   const user = await User.findById(userId)
-    .populate('departmentId', 'name code')
-    .populate('classId', 'className semester academicYear');
+    .populate("departmentId", "name code")
+    .populate(
+      "classId",
+      "className departmentId semester academicYear classTeacherId"
+    );
 
   if (!user) {
     throw new AppError("User doesn't exist", 404);

@@ -4,15 +4,17 @@ const {
   getMyDashboard,
   getStudentDashboardById,
   getClassAnalytics,
-  getStudentDetail,
+  getStudentSubjectDetailController,
   getDepartmentAnalytic,
 } = require("./analytics.controller");
 
 const {
   classIdParamSchema,
+  classSubjectParamSchema,
   departmentIdParamSchema,
   studentIdParamSchema,
-  classDashboardQuerySchema
+  classDashboardQuerySchema,
+  studentSubjectParamSchema
 } = require("./analytics.validator");
 
 const authMiddleware = require("../../middleware/auth.middleware");
@@ -32,9 +34,13 @@ analyticsRouter.get(
 
 
 //hod and superadmin
-analyticsRouter.get("/students/:studentId/dashboard", 
-  validate(studentIdParamSchema, "params"), 
-  allowOnly("SUPER_ADMIN", "HOD"), getStudentDashboardById);
+analyticsRouter.get("/students/:studentId/dashboard",
+  validate(studentIdParamSchema, "params"),
+  allowOnly(
+    "SUPER_ADMIN",
+    "HOD",
+    "TEACHER"
+  ), getStudentDashboardById);
 
 // Teacher Routes
 analyticsRouter.get(
@@ -46,17 +52,23 @@ analyticsRouter.get(
 );
 
 analyticsRouter.get(
-  "/teacher/student/:studentId",
-  validate(studentIdParamSchema, "params"),
-  allowOnly("TEACHER", "HOD"),
-  getStudentDetail
+  "/student/:studentId/subject/:subjectId",
+  validate(studentSubjectParamSchema, "params"),
+  allowOnly("TEACHER", "HOD", "SUPER_ADMIN"),
+  getStudentSubjectDetailController
 );
-
 // HOD Routes
 analyticsRouter.get(
-  "/:departmentId",
+  "/department",
+ 
+  allowOnly( "HOD"),
+  getDepartmentAnalytic
+);
+
+analyticsRouter.get(
+  "/department/:departmentId",
   validate(departmentIdParamSchema, "params"),
-  allowOnly("HOD", "SUPER_ADMIN"),
+  allowOnly( "SUPER_ADMIN"),
   getDepartmentAnalytic
 );
 

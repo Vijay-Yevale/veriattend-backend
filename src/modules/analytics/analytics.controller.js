@@ -4,7 +4,7 @@ const sendResponse = require("../../utils/response.util");
 const {
   getStudentDashboard,
   getClassDashboard,
-  getStudentDetailForTeacher,
+  getStudentSubjectDetail,
 getDepartmentAnalytics
 } = require("./analytics.service");
 
@@ -58,17 +58,20 @@ const getClassAnalytics = catchAsync(async (req, res) => {
   );
 });
 
-// Teacher Student Detail
-// GET /api/analytics/teacher/student/:studentId
-const getStudentDetail = catchAsync(async (req, res) => {
-  const { studentId } = req.params;
+// student detail per subject 
+const getStudentSubjectDetailController = catchAsync(async (req, res) => {
+  const { studentId, subjectId } = req.params;
 
-  const data = await getStudentDetailForTeacher(studentId);
+  const data = await getStudentSubjectDetail(
+    studentId,
+    subjectId,
+    req.user
+  );
 
   sendResponse(
     res,
     200,
-    "Student detail fetched successfully",
+    "Student subject detail fetched successfully",
     data
   );
 });
@@ -78,7 +81,10 @@ const getStudentDetail = catchAsync(async (req, res) => {
 const getDepartmentAnalytic = catchAsync(async (req, res) => {
   const { departmentId } = req.params;
 
-  const data = await getDepartmentAnalytics(departmentId);
+  const data = await getDepartmentAnalytics(
+    departmentId,
+    req.user
+  );
 
   sendResponse(
     res,
@@ -92,6 +98,6 @@ module.exports = {
   getMyDashboard,
   getStudentDashboardById,
   getClassAnalytics,
-  getStudentDetail,
+  getStudentSubjectDetailController,
   getDepartmentAnalytic,
 };

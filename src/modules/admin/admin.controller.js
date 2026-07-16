@@ -197,20 +197,8 @@ const getDepartments =
     });
 
 
-    // GET DEPARMTENT DETAILS
-    const departmentDetails = catchAsync(async (req, res) => {
-  const { departmentId } = req.params;
+   
 
-  const department =
-    await getDepartmentDetails(departmentId);
-
-  sendResponse(
-    res,
-    200,
-    "Department details fetched successfully",
-    department
-  );
-});
 
 // GET TEACHERS (HOD'S DEPARTMENT)
 
@@ -322,7 +310,7 @@ module.exports = {
 
     // GET
     getDepartments,
-    departmentDetails,
+ 
     getTeacher,
     getClass,
     getSubject,

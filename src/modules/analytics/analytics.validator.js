@@ -61,10 +61,18 @@ const studentIdParamSchema = Joi.object({
   "object.base": "Route parameters must be a valid object.",
 });
 
+const studentSubjectParamSchema = Joi.object({
+  studentId: objectId.label("Student ID"),
+  subjectId: objectId.label("Subject ID"),
+}).messages({
+  "object.base": "Route parameters must be a valid object.",
+});
+
 module.exports = {
   classIdParamSchema,
   classSubjectParamSchema,
   departmentIdParamSchema,
   studentIdParamSchema,
-  classDashboardQuerySchema
+  classDashboardQuerySchema,
+  studentSubjectParamSchema
 };

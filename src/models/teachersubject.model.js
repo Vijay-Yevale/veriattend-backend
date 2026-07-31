@@ -33,7 +33,7 @@ const teacherSubjectSchema = new mongoose.Schema(
 // One teacher per subject per class.
 // Prevents HOD from assigning two different teachers to the same subject+class.
 teacherSubjectSchema.index(
-  { subjectId: 1, classId: 1 },
+  { subjectId: 1, classId: 1,isActive:1 },
   { unique: true }
 );
 

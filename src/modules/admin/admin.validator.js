@@ -120,17 +120,24 @@ const createClassSchema = Joi.object({
     }),
 
   semester: Joi.number()
+    .integer()
     .min(1)
     .max(8)
     .required()
     .messages({
+      "number.base": "Semester must be a number",
       "number.min": "Semester must be between 1 and 8",
       "number.max": "Semester must be between 1 and 8",
       "any.required": "Semester is required",
     }),
+
+  classTeacherId: objectId
+    .allow(null)
+    .optional()
+    .messages({
+      "string.pattern.base": "Invalid Teacher ID",
+    }),
 });
-
-
 // CREATE SUBJECT
 
 

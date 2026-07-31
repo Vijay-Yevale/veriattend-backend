@@ -112,6 +112,8 @@ const getMe = async ({ userId }) => {
       "classId",
       "className departmentId semester academicYear classTeacherId"
     );
+  console.log("POPULATED USER:");
+console.log(user);
 
   if (!user) {
     throw new AppError("User doesn't exist", 404);

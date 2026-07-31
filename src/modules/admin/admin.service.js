@@ -1,3 +1,4 @@
+const mongoose = require("mongoose"); 
 const User = require("../../models/user.model");
 const Class = require("../../models/class.model");
 const Department = require("../../models/department.model");
@@ -9,7 +10,6 @@ const bcrypt = require("bcryptjs");
 
 
 // CREATE DEPARTMENT
-
 
 const createDepartment = async ({ name, code }) => {
   const nameExists = await Department.findOne({ name });
@@ -30,60 +30,105 @@ const createDepartment = async ({ name, code }) => {
     );
   }
 
-  return await Department.create({name, code});
-};
+  const department = await Department.create({
+    name,
+    code,
+  });
 
+  return department;
+};
 
 // CREATE HOD
 
 
-const createHod = async ({userName,email,password, departmentId}) => {
-  const userExists = await User.findOne({ email });
 
-  if (userExists) {
-    throw new AppError(
-      "User already exists with this email",
-      409
-    );
-  }
+const createHod = async ({
+  userName,
+  email,
+  password,
+  departmentId,
+}) => {
+  const session = await mongoose.startSession();
 
-  const department =
-    await Department.findById(departmentId);
+  try {
+    session.startTransaction();
 
-  if (!department) {
-    throw new AppError(
-      "Department not found",
-      404
-    );
-  }
+    const userExists = await User.findOne({
+      email,
+    }).session(session);
 
-  if (department.hodId) {
-    throw new AppError(
-      "This department already has a HOD assigned",
-      409
-    );
-  }
-
-  const hashedPassword =
-    await bcrypt.hash(password, 10);
-
-  const user = await User.create({userName,email,password: hashedPassword,role: "HOD",departmentId});
-
-  await Department.findByIdAndUpdate(
-    departmentId,
-    {
-      $set: {
-        hodId: user._id,
-      },
+    if (userExists) {
+      throw new AppError(
+        "User already exists with this email",
+        409
+      );
     }
-  );
 
-  user.password = undefined;
+    const department =
+      await Department.findById(
+        departmentId
+      ).session(session);
 
-  return user;
+    if (!department) {
+      throw new AppError(
+        "Department not found",
+        404
+      );
+    }
+
+    if (department.hodId) {
+      throw new AppError(
+        "This department already has a HOD assigned",
+        409
+      );
+    }
+
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
+
+    const [createdUser] = await User.create(
+      [
+        {
+          userName,
+          email,
+          password: hashedPassword,
+          role: "HOD",
+          departmentId,
+        },
+      ],
+      { session }
+    );
+
+    await Department.findByIdAndUpdate(
+      departmentId,
+      {
+        $set: {
+          hodId: createdUser._id,
+        },
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    // Populate department to match UserModel
+    const user = await User.findById(
+      createdUser._id
+    )
+      .populate(
+        "departmentId",
+        "name code"
+      )
+      .select("-password");
+
+    return user;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
-
-
 // CREATE TEACHER
 
 
@@ -103,17 +148,19 @@ const createTeacher = async (
   const hashedPassword =
     await bcrypt.hash(password, 10);
 
-  const user = await User.create({
-    userName,
-    email,
-    password: hashedPassword,
-    role: "TEACHER",
-    departmentId: hodUser.departmentId,
-  });
+ const user = await User.create({
+  userName,
+  email,
+  password: hashedPassword,
+  role: "TEACHER",
+  departmentId: hodUser.departmentId,
+});
 
-  user.password = undefined;
+const createdTeacher = await User.findById(user._id)
+  .populate("departmentId", "name code")
+  .select("-password");
 
-  return user;
+return createdTeacher;
 };
 
 
@@ -125,13 +172,13 @@ const createClass = async (
     className,
     academicYear,
     semester,
+    classTeacherId,
   },
   hodUser
 ) => {
-  const department =
-    await Department.findById(
-      hodUser.departmentId
-    );
+  const department = await Department.findById(
+    hodUser.departmentId
+  );
 
   if (!department) {
     throw new AppError(
@@ -142,8 +189,7 @@ const createClass = async (
 
   const classExists = await Class.findOne({
     className,
-    departmentId:
-      hodUser.departmentId,
+    departmentId: hodUser.departmentId,
     academicYear,
   });
 
@@ -154,21 +200,62 @@ const createClass = async (
     );
   }
 
-  return await Class.create({
-    className,academicYear,
-    semester,departmentId:hodUser.departmentId
-  });
-};
+  if (classTeacherId) {
+    const teacher = await User.findOne({
+      _id: classTeacherId,
+      role: "TEACHER",
+      departmentId: hodUser.departmentId,
+    });
 
+    if (!teacher) {
+      throw new AppError(
+        "Teacher not found",
+        404
+      );
+    }
+
+    const teacherAlreadyAssigned =
+      await Class.findOne({
+        classTeacherId,
+        academicYear,
+      });
+
+    if (teacherAlreadyAssigned) {
+      throw new AppError(
+        "Teacher is already assigned as a class teacher for this academic year",
+        409
+      );
+    }
+  }
+
+  const createdClass = await Class.create({
+    className,
+    academicYear,
+    semester,
+    departmentId: hodUser.departmentId,
+    classTeacherId: classTeacherId ?? null,
+  });
+
+  return await Class.findById(createdClass._id)
+    .populate(
+      "classTeacherId",
+      "_id userName"
+    )
+    .select(
+      "className departmentId academicYear semester classTeacherId"
+    );
+};
 
 // CREATE SUBJECT
 
 
-const createSubject = async ({subjectName,subjectCode,semester}, hodUser) => {
-  const department =
-    await Department.findById(
-      hodUser.departmentId
-    );
+const createSubject = async (
+  { subjectName, subjectCode, semester },
+  hodUser
+) => {
+  const department = await Department.findById(
+    hodUser.departmentId
+  );
 
   if (!department) {
     throw new AppError(
@@ -177,12 +264,10 @@ const createSubject = async ({subjectName,subjectCode,semester}, hodUser) => {
     );
   }
 
-  const subjectExists =
-    await Subject.findOne({
-      subjectCode,
-      departmentId:
-        hodUser.departmentId,
-    });
+  const subjectExists = await Subject.findOne({
+    subjectCode,
+    departmentId: hodUser.departmentId,
+  });
 
   if (subjectExists) {
     throw new AppError(
@@ -191,13 +276,15 @@ const createSubject = async ({subjectName,subjectCode,semester}, hodUser) => {
     );
   }
 
-  return await Subject.create({
+  const createdSubject = await Subject.create({
     subjectName,
     subjectCode,
     semester,
-    departmentId:
-      hodUser.departmentId,
+    departmentId: hodUser.departmentId,
   });
+
+  return await Subject.findById(createdSubject._id)
+    .select("_id subjectName subjectCode semester");
 };
 
 
@@ -210,10 +297,13 @@ const bulkAssignClassToStudents = async ({ classId, studentIds }, hodUser) => {
   if (!classExists) throw new AppError("Class not found", 404);
 
   if (classExists.departmentId.toString() !== hodUser.departmentId.toString()) {
-    throw new AppError("You can assign students only to your department classes", 403);
+    throw new AppError(
+      "You can assign students only to your department classes",
+      403
+    );
   }
 
-  const result = await User.updateMany(
+  await User.updateMany(
     {
       _id: { $in: studentIds },
       role: "STUDENT",
@@ -222,12 +312,6 @@ const bulkAssignClassToStudents = async ({ classId, studentIds }, hodUser) => {
     },
     { $set: { classId } }
   );
-
-  return {
-    requested: studentIds.length,
-    assigned: result.modifiedCount,
-    skipped: studentIds.length - result.modifiedCount,
-  };
 };
 
 
@@ -239,52 +323,36 @@ const assignTeacherToSubject = async ({
   subjectId,
   classId,
 }) => {
-  const teacher =
-    await User.findById(teacherId);
+  const teacher = await User.findById(teacherId);
 
   if (!teacher) {
-    throw new AppError(
-      "Teacher not found",
-      404
-    );
+    throw new AppError("Teacher not found", 404);
   }
 
   if (teacher.role !== "TEACHER") {
-    throw new AppError(
-      "User is not a teacher",
-      400
-    );
+    throw new AppError("User is not a teacher", 400);
   }
 
-  const subject =
-    await Subject.findById(subjectId);
+  const subject = await Subject.findById(subjectId);
 
   if (!subject) {
-    throw new AppError(
-      "Subject not found",
-      404
-    );
+    throw new AppError("Subject not found", 404);
   }
 
-  const classDoc =
-    await Class.findById(classId);
+  const classDoc = await Class.findById(classId);
 
   if (!classDoc) {
-    throw new AppError(
-      "Class not found",
-      404
-    );
+    throw new AppError("Class not found", 404);
   }
 
   // Teacher may belong to any department
   // Supports minor subjects
 
-  const alreadyAssigned =
-    await TeacherSubject.findOne({
-      teacherId,
-      subjectId,
-      classId,
-    });
+  const alreadyAssigned = await TeacherSubject.findOne({
+    teacherId,
+    subjectId,
+    classId,
+  });
 
   if (alreadyAssigned) {
     throw new AppError(
@@ -293,11 +361,13 @@ const assignTeacherToSubject = async ({
     );
   }
 
-  return await TeacherSubject.create({
+  await TeacherSubject.create({
     teacherId,
     subjectId,
     classId,
   });
+
+  return null;
 };
 
 
@@ -305,18 +375,9 @@ const assignTeacherToSubject = async ({
 
 
 const getAllDepartments = async () => {
-  const departments =
-    await Department.find()
-      .select("name code");
-
-  if (!departments.length) {
-    throw new AppError(
-      "No departments found",
-      404
-    );
-  }
-
-  return departments;
+  return await Department.find()
+    .select("name code")
+    .sort({ createdAt: -1 });
 };
 
 // get deparment details
@@ -325,141 +386,96 @@ const getAllDepartments = async () => {
 // GET TEACHERS
 
 
-const getTeachers = async (
-  hodUser
-) => {
-  const teachers =
-    await User.find({
-      role: "TEACHER",
-      departmentId:
-        hodUser.departmentId,
-    }).select(
-      "userName email"
-    );
-
-  if (!teachers.length) {
-    throw new AppError(
-      "No teachers found",
-      404
-    );
-  }
-
-  return teachers;
+const getTeachers = async (hodUser) => {
+  return await User.find({
+    role: "TEACHER",
+    departmentId: hodUser.departmentId,
+  })
+    .populate("departmentId", "name code")
+    .select(
+      "userName email role departmentId createdAt updatedAt"
+    )
+    .sort({ createdAt: -1 });
 };
 
+//
+const getTeacherAssignments = async (hodUser) => {
+  const assignments = await TeacherSubject.find()
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate({
+      path: "classId",
+      match: {
+        departmentId: hodUser.departmentId,
+      },
+      select: "_id className",
+    })
+    .sort({ createdAt: -1 });
+
+  // Remove assignments whose class doesn't belong to this HOD's department
+  // or where any populated reference is missing.
+  return assignments.filter(
+    (assignment) =>
+      assignment.teacherId &&
+      assignment.subjectId &&
+      assignment.classId
+  );
+};
 
 // GET CLASSES
 
 
-const getClasses = async (
-  hodUser
-) => {
-  const classes =
-    await Class.find({
-      departmentId:
-        hodUser.departmentId,
-    })
-      .select(
-        "className academicYear semester"
-      )
-      .populate(
-        "departmentId",
-        "name code"
-      );
 
-  if (!classes.length) {
-    throw new AppError(
-      "No classes found",
-      404
-    );
-  }
-
-  return classes;
+const getClasses = async (hodUser) => {
+  return await Class.find({
+    departmentId: hodUser.departmentId,
+  })
+    .populate(
+      "classTeacherId",
+      "_id userName"
+    )
+    .select(
+      "className departmentId academicYear semester classTeacherId"
+    ).sort({ createdAt: -1 });;
 };
 
 // GET SUBJECTS
 
 
-const getSubjects = async (
-  hodUser
-) => {
-  const subjects =
-    await Subject.find({
-      departmentId:
-        hodUser.departmentId,
-    })
-      .select(
-        "subjectName subjectCode semester"
-      )
-      .populate(
-        "departmentId",
-        "name code"
-      );
-
-  if (!subjects.length) {
-    throw new AppError(
-      "No subjects found",
-      404
-    );
-  }
-
-  return subjects;
+const getSubjects = async (hodUser) => {
+  return await Subject.find({
+    departmentId: hodUser.departmentId,
+  })
+    .select("_id subjectName subjectCode semester")
+    .sort({ createdAt: -1 });
 };
-
 
 // GET PENDING STUDENTS
 
 
-const getPendingStudents =
-  async (hodUser) => {
-    const students =
-      await User.find({
-        role: "STUDENT",
-        classId: null,
-        departmentId:
-          hodUser.departmentId,
-      }).select(
-        "userName email PRN createdAt"
-      );
-
-    if (!students.length) {
-      throw new AppError(
-        "No pending students found",
-        404
-      );
-    }
-
-    return students;
-  };
+const getPendingStudents = async (hodUser) => {
+  return await User.find({
+    role: "STUDENT",
+    classId: null,
+    departmentId: hodUser.departmentId,
+  })
+   .select("_id userName email role PRN")
+    .sort({ PRN: 1 });
+};
 
 
 // GET STUDENTS BY CLASS
 
 
-const getStudentsByClass =
-  async (classId) => {
-    const students =
-      await User.find({
-        classId,
-        role: "STUDENT",
-      })
-        .select(
-          "userName email PRN"
-        )
-        .populate(
-          "classId",
-          "className academicYear semester"
-        );
+const getStudentsByClass = async (classId) => {
+  return await User.find({
+    classId,
+    role: "STUDENT",
+  })
+    .select("_id userName email role PRN")
+    .sort({ PRN: 1 });
+};
 
-    if (!students.length) {
-      throw new AppError(
-        "No students found",
-        404
-      );
-    }
-
-    return students;
-  };
 
 module.exports = {
   createDepartment,
@@ -475,6 +491,7 @@ module.exports = {
   getTeachers,
   getClasses,
   getSubjects,
+  getTeacherAssignments,
   getPendingStudents,
   getStudentsByClass,
 };

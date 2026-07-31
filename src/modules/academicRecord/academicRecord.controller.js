@@ -5,6 +5,7 @@ const {
   addAssignmentMark,
   setInternalMarks,
   bulkSubmitMarks,
+  getClassRosterForMarks,
   getClassMarks,
   getStudentMarks,
 } = require("../academicRecord/academicRecord.service");
@@ -61,6 +62,17 @@ const bulkSubmitMarksController = catchAsync(async (req, res) => {
   sendResponse(res, 200, `Bulk ${type} marks submitted`, result);
 });
 
+//  full class roster for the "Manage Marks" screen — every student in
+//  the class, with empty arrays / null marks where nothing entered yet
+const getClassRosterController = catchAsync(async (req, res) => {
+  const { classId, subjectId } = req.params;
+  const teacherId = req.user._id;
+
+  const data = await getClassRosterForMarks(subjectId, classId, teacherId);
+
+  sendResponse(res, 200, "Class roster fetched successfully", data);
+});
+
 //  getting all student marks that belong to same class and subject
 const getClassMarksController = catchAsync(async (req, res) => {
   const { classId, subjectId } = req.params;
@@ -97,6 +109,7 @@ module.exports = {
   addAssignmentMarkController,
   setInternalMarksController,
   bulkSubmitMarksController,
+  getClassRosterController,
   getClassMarksController,
   getStudentMarksController,
   getStudentMarksById

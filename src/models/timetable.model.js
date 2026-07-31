@@ -42,12 +42,6 @@ const timetableSchema = new mongoose.Schema(
       required: [true, "End time is required"],
     },
 
-    weekType: {
-      type: String,
-      enum: ["all", "odd", "even"],
-      default: "all",
-    },
-
     isActive: {
       type: Boolean,
       default: true,
@@ -58,9 +52,10 @@ const timetableSchema = new mongoose.Schema(
   }
 );
 
-
+// weekType dropped from the compound key — a slot is now uniquely
+// identified by class + day + start time, full stop.
 timetableSchema.index(
-  { classId: 1, weekDay: 1, startTime: 1, weekType: 1 },
+  { classId: 1, weekDay: 1, startTime: 1 },
   { unique: true }
 );
 

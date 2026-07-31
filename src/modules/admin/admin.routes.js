@@ -37,6 +37,7 @@ const {
   getSubject,
   pendingStudents,
   studentsByClass,
+  getTeacherAssignmentsController,
 } = require("./admin.controller");
 
 const adminRouter = express.Router();
@@ -101,7 +102,7 @@ adminRouter.patch(
   bulkAssignStudents
 );
 
-adminRouter.patch(
+adminRouter.post(
   "/assign-teacher",
   validate(createTeacherSubjectSchema),
   allowOnly("HOD"),
@@ -109,7 +110,7 @@ adminRouter.patch(
 );
 
 adminRouter.get(
-  "/teachers",
+  "/teacher",
   allowOnly("HOD"),
   getTeacher
 );
@@ -119,9 +120,10 @@ adminRouter.get(
   allowOnly("HOD"),
   getClass
 );
+adminRouter.get("/assign-teacher",allowOnly("HOD"),getTeacherAssignmentsController);
 
 adminRouter.get(
-  "/subjects",
+  "/subject",
   allowOnly("HOD"),
   getSubject
 );
@@ -133,10 +135,10 @@ adminRouter.get(
 );
 
 adminRouter.get(
-  "/students/:classId",
+  "/students/class/:classId",
   validate(classIdParamSchema, "params"),
   allowOnly("HOD"),
-  studentsByClass
+  studentsByClass,
 );
 
 module.exports = adminRouter;

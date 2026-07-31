@@ -9,8 +9,9 @@ const {
     createSubject,
      bulkAssignClassToStudents,
     assignTeacherToSubject,
-     getDepartmentDetails,
+     
     getAllDepartments,
+    getTeacherAssignments,
     getTeachers,
     getClasses,
     getSubjects,
@@ -94,28 +95,29 @@ const teacher = catchAsync(async (req, res) => {
 // CREATE CLASS
 
 const classes = catchAsync(async (req, res) => {
-    const {
-        className,
-        academicYear,
-        semester,
-    } = req.body;
+  const {
+    className,
+    academicYear,
+    semester,
+    classTeacherId,
+  } = req.body;
 
-    const newClass =
-        await createClass(
-            {
-                className,
-                academicYear,
-                semester,
-            },
-            req.user
-        );
+  const newClass = await createClass(
+    {
+      className,
+      academicYear,
+      semester,
+      classTeacherId,
+    },
+    req.user
+  );
 
-    sendResponse(
-        res,
-        201,
-        "Class created successfully",
-        newClass
-    );
+  sendResponse(
+    res,
+    201,
+    "Class created successfully",
+    newClass
+  );
 });
 
 // CREATE SUBJECT
@@ -146,40 +148,55 @@ const subject = catchAsync(async (req, res) => {
 });
 
 // ASSIGN STUDENT TO CLASS
-
-
 const bulkAssignStudents = catchAsync(async (req, res) => {
   const { classId, studentIds } = req.body;
-  const result = await bsulkAssignClassToStudents({ classId, studentIds }, req.user);
-  sendResponse(res, 200, "Students assigned to class", result);
-});
 
+  await bulkAssignClassToStudents(
+    { classId, studentIds },
+    req.user
+  );
+
+  sendResponse(
+    res,
+    200,
+    "Students assigned to class",
+    null
+  );
+});
 // ASSIGN TEACHER TO SUBJECT
 
-const assignTeacher =
-    catchAsync(async (req, res) => {
-        const {
-            teacherId,
-            subjectId,
-            classId,
-        } = req.body;
+const assignTeacher = catchAsync(async (req, res) => {
+  const {
+    teacherId,
+    subjectId,
+    classId,
+  } = req.body;
 
-        const assignment =
-            await assignTeacherToSubject({
-                teacherId,
-                subjectId,
-                classId,
-            });
+  await assignTeacherToSubject({
+    teacherId,
+    subjectId,
+    classId,
+  });
 
-        sendResponse(
-            res,
-            201,
-            "Teacher assigned to subject successfully",
-            assignment
-        );
-    });
+  sendResponse(
+    res,
+    201,
+    "Teacher assigned to subject successfully",
+    null
+  );
+});
 
 
+const getTeacherAssignmentsController = catchAsync(async (req, res) => {
+  const assignments = await getTeacherAssignments(req.user);
+
+  sendResponse(
+    res,
+    200,
+    "Teacher assignments fetched successfully",
+    assignments
+  );
+});
 // GET ALL DEPARTMENTS
 
 
@@ -222,22 +239,16 @@ const getTeacher =
 // GET CLASSES (HOD'S DEPARTMENT)
 
 
-const getClass =
-    catchAsync(async (req, res) => {
-        const classList =
-            await getClasses(
-                req.user
-            );
+const getClass = catchAsync(async (req, res) => {
+  const classList = await getClasses(req.user);
 
-        sendResponse(
-            res,
-            200,
-            "Classes fetched successfully",
-            classList
-        );
-    });
-
-
+  sendResponse(
+    res,
+    200,
+    "Classes fetched successfully",
+    classList
+  );
+});
 // GET SUBJECTS (HOD'S DEPARTMENT)
 
 const getSubject =
@@ -310,7 +321,7 @@ module.exports = {
 
     // GET
     getDepartments,
- 
+ getTeacherAssignmentsController,
     getTeacher,
     getClass,
     getSubject,

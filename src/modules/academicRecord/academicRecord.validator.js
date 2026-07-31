@@ -27,7 +27,7 @@ const addQuizMarkSchema = Joi.object({
       "any.required": "Quiz mark is required",
     }),
 });
-        
+
 //  Add a single assignment mark --- atmost 25 marks
 const addAssignmentMarkSchema = Joi.object({
   studentId: objectId.label("Student ID"),
@@ -106,10 +106,19 @@ const studentIdParamSchema = Joi.object({
   "object.base": "Route parameters must be a valid object.",
 });
 
+//  classId + subjectId route params -- used by the class roster route
+const classSubjectParamSchema = Joi.object({
+  classId: objectId.label("Class ID"),
+  subjectId: objectId.label("Subject ID"),
+}).messages({
+  "object.base": "Route parameters must be a valid object.",
+});
+
 module.exports = {
   addQuizMarkSchema,
   addAssignmentMarkSchema,
   setInternalMarksSchema,
   bulkMarksSchema,
-  studentIdParamSchema
+  studentIdParamSchema,
+  classSubjectParamSchema,
 };

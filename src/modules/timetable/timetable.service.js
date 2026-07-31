@@ -1,25 +1,24 @@
+// timetable.service.js
 const Timetable = require("../../models/timetable.model");
 const User = require("../../models/user.model");
 const Subject = require("../../models/subject.model");
 const Class = require("../../models/class.model");
 const TeacherSubject = require("../../models/teachersubject.model");
 const AppError = require("../../utils/AppError");
+const { buildTimetableSlot, getCurrentDayAndTime } = require("./timetable.helper");
 
-const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDay, weekType, startTime, endTime }) => {
+const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDay, startTime, endTime }) => {
 
   const teacher = await User.findById(teacherId);
   if (!teacher || teacher.role !== "TEACHER") {
     throw new AppError("Teacher not found", 404);
   }
 
-
   const subject = await Subject.findById(subjectId);
   if (!subject) throw new AppError("Subject not found", 404);
 
-
   const classExists = await Class.findById(classId);
   if (!classExists) throw new AppError("Class not found", 404);
-
 
   const assignment = await TeacherSubject.findOne({ teacherId, subjectId, classId });
   if (!assignment) {
@@ -48,35 +47,173 @@ const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDa
 
   const slot = await Timetable.create({
     teacherId, subjectId, classId,
-    room, weekDay, weekType,
+    room, weekDay,
     startTime, endTime,
   });
 
-  return slot;
+  //  Re-fetch populated so the response matches every other endpoint's shape
+  const populatedSlot = await Timetable.findById(slot._id)
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
+
+  return buildTimetableSlot(populatedSlot);
 };
 
-const getTimetableByClass = async (classId) => {
-  const timetable = await Timetable.find({ classId, isActive: true })
-    .populate("teacherId", "userName")
-    .populate("subjectId", "subjectName subjectCode")
-    .populate("classId", "className");
+// Confines a STUDENT to their own class. A TEACHER gets in if they either
+// teach a subject in that class (TeacherSubject) OR are that class's
+// classTeacher (homeroom/mentor) — a class teacher needs the full class
+// schedule, not just their own slot in it. HOD is scoped to their own
+// department.
+const resolveClassAccess = async ({ classId, requester }) => {
+  if (!requester) return classId;
 
-  if (!timetable.length) throw new AppError("No timetable found for this class", 404);
+  // Student → only their own class
+  if (requester.role === "STUDENT") {
+    if (!requester.classId) {
+      throw new AppError("Your account is not assigned to a class yet", 403);
+    }
+    return requester.classId;
+  }
 
-  return timetable;
+  // Teacher → classes they teach a subject in, or classes they're the
+  // classTeacher (mentor) for
+  if (requester.role === "TEACHER") {
+    const [cls, isAssignedSubject] = await Promise.all([
+      Class.findById(classId).select("classTeacher"),
+      TeacherSubject.exists({ teacherId: requester.id, classId }),
+    ]);
+
+    if (!cls) {
+      throw new AppError("Class not found", 404);
+    }
+
+    const isClassTeacher =
+      cls.classTeacher && cls.classTeacher.toString() === requester.id.toString();
+
+    if (!isClassTeacher && !isAssignedSubject) {
+      throw new AppError("You are not assigned to this class", 403);
+    }
+
+    return classId;
+  }
+
+  // HOD → only classes in their department
+  if (requester.role === "HOD") {
+    if (!requester.departmentId) {
+    throw new AppError("Your account has not been assigned a department yet", 403);
+  }
+    const cls = await Class.findById(classId).select("departmentId");
+
+    if (!cls) {
+      throw new AppError("Class not found", 404);
+    }
+
+    if (cls.departmentId.toString() !== requester.departmentId.toString()) {
+      throw new AppError(
+        "You are not authorized to access this class",
+        403
+      );
+    }
+
+    return classId;
+  }
+
+  // SUPER_ADMIN
+  return classId;
 };
 
-const getTimetableByTeacher = async (teacherId) => {
-  const timetable = await Timetable.find({ teacherId, isActive: true })
-    .populate("subjectId", "subjectName subjectCode")
-    .populate("classId", "className");
+// Same IDOR shape as above, applied to /teacher/:teacherId — a TEACHER is
+// pinned to their own schedule. HOD is scoped to their own department.
+const resolveTeacherAccess = async ({ teacherId, requester }) => {
+  if (!requester) return teacherId;
 
-  if (!timetable.length) throw new AppError("No timetable found for this teacher", 404);
+  if (requester.role === "TEACHER") {
+    return requester.id;
+  }
 
-  return timetable;
+  if (requester.role === "HOD") {
+    if (!requester.departmentId) {
+    throw new AppError("Your account has not been assigned a department yet", 403);
+  }
+    const teacher = await User.findById(teacherId).select("departmentId role");
+
+    if (!teacher || teacher.role !== "TEACHER") {
+      throw new AppError("Teacher not found", 404);
+    }
+
+    if (teacher.departmentId.toString() !== requester.departmentId.toString()) {
+      throw new AppError(
+        "You are not authorized to access this teacher",
+        403
+      );
+    }
+
+    return teacherId;
+  }
+
+  return teacherId;
+};
+// today=true pins weekDay to the actual current day (overrides an explicit
+// day param).
+const buildWeekFilter = ({ day, today }) => {
+  const filter = {};
+
+  if (today) {
+    filter.weekDay = getCurrentDayAndTime().weekDay;
+  } else if (day) {
+    filter.weekDay = day;
+  }
+
+  return filter;
 };
 
+const getTimetableByClass = async ({ classId, day, today, requester }) => {
+  const resolvedClassId = await resolveClassAccess({ classId, requester });
 
+  const filter = {
+    classId: resolvedClassId,
+    isActive: true,
+    ...buildWeekFilter({ day, today }),
+  };
+
+  const timetable = await Timetable.find(filter)
+    .sort({ startTime: 1 })
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
+
+  // No slots is a normal outcome (e.g. nothing scheduled for the selected
+  // day), not an error — return [] with 200 so the frontend can render an
+  // empty state instead of catching an exception.
+  return timetable.map((slot) =>
+    buildTimetableSlot(slot, { includeTodayStatus: !!today })
+  );
+};
+
+const getTimetableByTeacher = async ({ teacherId, day, today, requester }) => {
+  const resolvedTeacherId = await resolveTeacherAccess({ teacherId, requester });
+
+  const filter = {
+    teacherId: resolvedTeacherId,
+    isActive: true,
+    ...buildWeekFilter({ day, today }),
+  };
+
+  const timetable = await Timetable.find(filter)
+    .sort({ startTime: 1 })
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
+
+  // Same reasoning as getTimetableByClass — empty is not an error here.
+  return timetable.map((slot) =>
+    buildTimetableSlot(slot, { includeTodayStatus: !!today })
+  );
+};
 
 const getActiveSlot = async (teacherId) => {
   const now = new Date();
@@ -90,29 +227,55 @@ const getActiveSlot = async (teacherId) => {
     startTime: { $lte: currentTime },
     endTime: { $gte: currentTime },
     isActive: true,
-  });
+  })
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
 
-  if (!slot) throw new AppError("No active class right now", 404);
+   if (!slot) {
+    return null;
+  }
 
-  return slot;
+  return buildTimetableSlot(slot);
 };
 
-const getActiveSlotByClass = async (classId) => {
+const getActiveSlotByClass = async ({ classId, requester }) => {
+  const resolvedClassId = await resolveClassAccess({ classId, requester });
+
   const now = new Date();
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
   const currentDay = days[now.getDay()];
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes()
+  ).padStart(2, "0")}`;
 
   const slot = await Timetable.findOne({
-    classId,
+    classId: resolvedClassId,
     weekDay: currentDay,
     startTime: { $lte: currentTime },
     endTime: { $gte: currentTime },
     isActive: true,
-  });
+  })
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
 
-  if (!slot) throw new AppError("No active class right now", 404);
-  return slot;
+  if (!slot) {
+    return null;
+  }
+
+  return buildTimetableSlot(slot);
 };
 
 const updateTimetableSlot = async (slotId, updates) => {
@@ -137,8 +300,20 @@ const updateTimetableSlot = async (slotId, updates) => {
     }
   }
 
-  //  If assignment-related fields changed, re-check TeacherSubject
-  if (updates.teacherId || updates.subjectId || updates.classId) {
+
+  const teacherChanged =
+    updates.teacherId !== undefined &&
+    updates.teacherId !== slot.teacherId.toString();
+
+  const subjectChanged =
+    updates.subjectId !== undefined &&
+    updates.subjectId !== slot.subjectId.toString();
+
+  const classChanged =
+    updates.classId !== undefined &&
+    updates.classId !== slot.classId.toString();
+
+  if (teacherChanged || subjectChanged || classChanged) {
     const assignment = await TeacherSubject.findOne({
       teacherId: merged.teacherId,
       subjectId: updates.subjectId || slot.subjectId,
@@ -177,7 +352,14 @@ const updateTimetableSlot = async (slotId, updates) => {
     { new: true, runValidators: true }
   );
 
-  return updated;
+  //  Re-fetch populated so the response matches every other endpoint's shape
+  const populatedSlot = await Timetable.findById(updated._id)
+    .populate("teacherId", "_id userName")
+    .populate("subjectId", "_id subjectName subjectCode")
+    .populate("classId", "_id className")
+    .lean();
+
+  return buildTimetableSlot(populatedSlot);
 };
 
 const deleteTimetableSlot = async (slotId) => {
@@ -190,7 +372,7 @@ const deleteTimetableSlot = async (slotId) => {
 
   if (!slot) throw new AppError("Timetable slot not found", 404);
 
-  return slot;
+  return null;
 };
 
 module.exports = {

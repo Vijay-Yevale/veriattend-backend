@@ -5,6 +5,7 @@ const {
   addAssignmentMarkController,
   setInternalMarksController,
   bulkSubmitMarksController,
+  getClassRosterController,
   getClassMarksController,
   getStudentMarksController,
   getStudentMarksById
@@ -15,7 +16,8 @@ const {
   addAssignmentMarkSchema,
   setInternalMarksSchema,
   bulkMarksSchema,
-  studentIdParamSchema
+  studentIdParamSchema,
+  classSubjectParamSchema
 } = require("./academicRecord.validator");
 
 const authMiddleware = require("../../middleware/auth.middleware");
@@ -31,6 +33,12 @@ academicRouter.post("/assignment", validate(addAssignmentMarkSchema), allowOnly(
 academicRouter.put("/internal", validate(setInternalMarksSchema), allowOnly("TEACHER"), setInternalMarksController);
 academicRouter.post("/bulk", validate(bulkMarksSchema), allowOnly("TEACHER"), bulkSubmitMarksController);
 
+academicRouter.get(
+  "/class/:classId/subject/:subjectId/roster",
+  validate(classSubjectParamSchema, "params"),
+  allowOnly("TEACHER"),
+  getClassRosterController
+);
 academicRouter.get("/class/:classId/subject/:subjectId", allowOnly("TEACHER", "HOD"), getClassMarksController);
 academicRouter.get("/student/marks", allowOnly("STUDENT"), getStudentMarksController);
 academicRouter.get(

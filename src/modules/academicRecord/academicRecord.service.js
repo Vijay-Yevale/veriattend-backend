@@ -248,6 +248,44 @@ const bulkSubmitMarks = async (
   return results;
 };
 
+//  full class roster for the "Manage Marks" screen — every student in
+//  the class, with empty arrays / null marks where nothing entered yet
+const getClassRosterForMarks = async (subjectId, classId, teacherId) => {
+  await _verifyTeacherOwnership(teacherId, subjectId, classId);
+
+  const students = await User.find(
+    { classId, role: "STUDENT" },
+    { userName: 1, PRN: 1 }
+  )
+    .sort({ userName: 1 })
+    .lean();
+
+  if (!students.length) {
+    throw new AppError("No students found in this class", 404);
+  }
+
+  const records = await AcademicRecord.find({ subjectId, classId }).lean();
+
+  const recordsByStudentId = new Map(
+    records.map((record) => [record.studentId.toString(), record])
+  );
+
+  return students.map((student) => {
+    const record = recordsByStudentId.get(student._id.toString());
+
+    return {
+      studentId: student._id,
+      userName: student.userName,
+      PRN: student.PRN,
+      quizMarks: record ? record.quizMarks : [],
+      quizAverage: record ? avg(record.quizMarks) : null,
+      assignmentMarks: record ? record.assignmentMarks : [],
+      assignmentAverage: record ? avg(record.assignmentMarks) : null,
+      internalMarks: record ? record.internalMarks : null,
+    };
+  });
+};
+
 //  get all students' marks for a subject+class (teacher view) 
 const getClassMarks = async (subjectId, classId) => {
   const records = await AcademicRecord.find({ subjectId, classId })
@@ -297,6 +335,7 @@ module.exports = {
   addAssignmentMark,
   setInternalMarks,
   bulkSubmitMarks,
+  getClassRosterForMarks,
   getClassMarks,
   getStudentMarks,
 };

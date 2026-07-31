@@ -1,13 +1,9 @@
+// timetable.validator.js
 const Joi = require("joi");
 
 const objectId = Joi.string().hex().length(24).required();
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-
-
-
-
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -38,13 +34,7 @@ const createTimetableSchema = Joi.object({
     .required()
     .messages({
       "any.required": "weekDay is required",
-      "any.only": "weekDay must be Monday-Saturday",
-    }),
-  weekType: Joi.string()
-    .valid("all")
-    .default("all")
-    .messages({
-      "any.only": "weekType must be all",
+      "any.only": "weekDay must be a valid day of the week (Sunday-Saturday)",
     }),
   startTime: Joi.string()
     .pattern(timeRegex)
@@ -81,6 +71,24 @@ const getTimetableByTeacherSchema = Joi.object({
   }),
 });
 
+// Shared by both /class/:classId and /teacher/:teacherId — same two
+// optional filters, so one schema covers both instead of duplicating it.
+const timetableQuerySchema = Joi.object({
+  day: Joi.string()
+    .valid(...weekDays)
+    .messages({
+      "any.only": "day must be a valid day of the week (Sunday-Saturday)",
+    }),
+  today: Joi.boolean()
+    .truthy("1")
+    .falsy("0")
+    .messages({
+      "boolean.base": "today must be true/false (or 1/0)",
+    }),
+});
+
+
+
 const slotIdSchema = Joi.object({
   slotId: objectId.messages({
     "any.required": "slotId is required",
@@ -91,13 +99,8 @@ const slotIdSchema = Joi.object({
 const updateTimetableSlotSchema = Joi.object({
   room: Joi.string().trim(),
   weekDay: Joi.string().valid(...weekDays).messages({
-    "any.only": "weekDay must be Monday-Saturday",
+    "any.only": "weekDay must be a valid day of the week (Sunday-Saturday)",
   }),
-  weekType: Joi.string()
-    .valid("all")
-    .messages({
-      "any.only": "weekType must be all",
-    }),
   startTime: Joi.string().pattern(timeRegex).messages({
     "string.pattern.base": "startTime must be HH:MM 24-hour format",
   }),
@@ -131,6 +134,7 @@ module.exports = {
   createTimetableSchema,
   getTimetableByClassSchema,
   getTimetableByTeacherSchema,
+  timetableQuerySchema,
   slotIdSchema,
   updateTimetableSlotSchema,
 };

@@ -3,7 +3,7 @@ const Timetable = require("../../models/timetable.model");
 const User = require("../../models/user.model");
 const Subject = require("../../models/subject.model");
 const Class = require("../../models/class.model");
-const TeacherSubject = require("../../models/teachersubject.model");
+const TeacherSubject = require("../../models/teacherSubject.model");
 const AppError = require("../../utils/AppError");
 const { buildTimetableSlot, getCurrentDayAndTime } = require("./timetable.helper");
 

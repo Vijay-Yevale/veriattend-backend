@@ -1,6 +1,6 @@
 const Class = require("../../models/class.model");
 const Subject = require("../../models/subject.model");
-const TeacherSubject = require("../../models/teachersubject.model");
+const TeacherSubject = require("../../models/teacherSubject.model");
 
 // GET CLASS DETAIL
 

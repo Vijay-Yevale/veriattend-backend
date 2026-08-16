@@ -30,6 +30,22 @@ const attendanceSessionSchema = new mongoose.Schema(
     qrExpiry: {
       type: Date,
     },
+    qrVersion: {
+      type: Number,
+      default: 1,
+    },
+    // The token that was current immediately before the last rotation.
+    // Kept around for QR_GRACE_PERIOD_MS after a rotation so a scan of
+    // the "old" QR that's already in flight over a slow connection still
+    // succeeds instead of bouncing as an invalid/expired code.
+    previousQrToken: {
+      type: String,
+      default: null,
+    },
+    previousQrExpiry: {
+      type: Date,
+      default: null,
+    },
     anchorLat: {
       type: Number,
       required: [true, "latitude required"],
@@ -64,6 +80,11 @@ attendanceSessionSchema.index(
 // qr lookup fast
 attendanceSessionSchema.index(
   { qrToken: 1, isActive: 1 }
+);
+
+// grace-period qr lookup (submitAttendance's $or also hits this field)
+attendanceSessionSchema.index(
+  { previousQrToken: 1, isActive: 1 }
 );
 
 const Session =

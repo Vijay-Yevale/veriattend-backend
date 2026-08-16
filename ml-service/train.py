@@ -24,11 +24,6 @@ print(df.head())
 
 
 
-# Data Preprocessing
-
-
-# Internal marks are out of 30.
-# Convert them into percentage.
 
 df["internalMarks"] = (df["internalMarks"] / 30) * 100
 

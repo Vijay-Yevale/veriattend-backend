@@ -1,6 +1,8 @@
 const Joi = require("joi");
+const { faceEmbeddingSchema } = require("../face/face.validator");
 
 const objectId = Joi.string().hex().length(24);
+
 const startAttendanceSchema = Joi.object({
   anchorLat: Joi.number()
     .min(-90)
@@ -23,12 +25,12 @@ const startAttendanceSchema = Joi.object({
     }),
 });
 
+// STAGE 1 — QR + GPS only. No embedding here: submitAttendance() doesn't
+// accept one, and forcing a face capture before the token even exists
+// just adds a wasted round trip on the client.
 const submitAttendanceSchema = Joi.object({
-
   qrToken: Joi.string().required().messages({
     "any.required": "QR token required",
-    "string.hex": "Invalid QR token",
-    "string.length": "Invalid QR token",
   }),
   deviceId: Joi.string()
     .trim()
@@ -48,7 +50,6 @@ const submitAttendanceSchema = Joi.object({
       "number.min": "Latitude must be >= -90",
       "number.max": "Latitude must be <= 90",
     }),
-
   studentLng: Joi.number()
     .min(-180)
     .max(180)
@@ -58,9 +59,17 @@ const submitAttendanceSchema = Joi.object({
       "number.min": "Longitude must be >= -180",
       "number.max": "Longitude must be <= 180",
     }),
+});
 
-
-
+// STAGE 2 — face verification + attendance creation. Takes the token
+// issued by stage 1 plus the live embedding; this is what actually
+// reaches verifyFaceAndMarkAttendance() in the service.
+const verifyFaceAttendanceSchema = Joi.object({
+  verificationToken: Joi.string().required().messages({
+    "any.required": "verificationToken required",
+    "string.empty": "verificationToken cannot be empty",
+  }),
+  embedding: faceEmbeddingSchema,
 });
 
 const manualAttendanceSchema = Joi.object({
@@ -93,9 +102,8 @@ const SessionSchema = Joi.object({
     "any.required": "sessionId required",
     "string.hex": "Invalid sessionId",
     "string.length": "Invalid sessionId",
-  })
+  }),
 });
-
 
 const classIdParamSchema = Joi.object({
   classId: objectId.required().messages({
@@ -125,13 +133,19 @@ const recordIdSchema = Joi.object({
   }),
 });
 
+const reviewQuerySchema = Joi.object({
+  search: Joi.string().trim().max(100).allow("").optional(),
+});
+
 module.exports = {
   startAttendanceSchema,
   submitAttendanceSchema,
+  verifyFaceAttendanceSchema,
   manualAttendanceSchema,
   SessionSchema,
   classIdParamSchema,
   todayOnlyQuerySchema,
   teacherIdSchema,
   recordIdSchema,
+  reviewQuerySchema,
 };

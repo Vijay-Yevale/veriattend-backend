@@ -1,19 +1,23 @@
-const { start, submit,
-    qrToken, ends,
-    manual, active,
-    allSession, teacherSession, getTeacherSessionByHod,
-    presentStudents, absentStudents,
-    removes } = require("./attendance.controller");
+const {
+  start, submit, verifyFace,
+  qrToken, ends,
+  manual, active,
+  allSession, teacherSession, getTeacherSessionByHod,
+  presentStudents, absentStudents, review, live,
+  removes,
+} = require("./attendance.controller");
 
 const validate = require("../../middleware/validate.middleware");
-const { startAttendanceSchema, submitAttendanceSchema,
-    manualAttendanceSchema, SessionSchema,
-    classIdParamSchema, todayOnlyQuerySchema, teacherIdSchema, recordIdSchema } = require("./attendance.validator");
+const {
+  startAttendanceSchema, submitAttendanceSchema, verifyFaceAttendanceSchema,
+  manualAttendanceSchema, SessionSchema,
+  classIdParamSchema, todayOnlyQuerySchema, teacherIdSchema, recordIdSchema,
+  reviewQuerySchema,
+} = require("./attendance.validator");
 
 const authMiddleware = require("../../middleware/auth.middleware");
 const allowOnly = require("../../middleware/role.middleware");
 const express = require("express");
-
 
 const attendanceRouter = express.Router();
 
@@ -22,6 +26,7 @@ attendanceRouter.use(authMiddleware);
 //  post methods
 attendanceRouter.post("/session/start", validate(startAttendanceSchema), allowOnly("TEACHER"), start);
 attendanceRouter.post("/session/submit", validate(submitAttendanceSchema), allowOnly("STUDENT"), submit);
+attendanceRouter.post("/session/verify-face", validate(verifyFaceAttendanceSchema), allowOnly("STUDENT"), verifyFace);
 attendanceRouter.post("/session/:sessionId/manual", validate(SessionSchema, "params"), validate(manualAttendanceSchema), allowOnly("TEACHER"), manual);
 
 //patch methods
@@ -37,6 +42,8 @@ attendanceRouter.get("/session/teacher", validate(todayOnlyQuerySchema, "query")
 attendanceRouter.get("/session/teacher/:teacherId", validate(teacherIdSchema, "params"), validate(todayOnlyQuerySchema, "query"), allowOnly("HOD"), getTeacherSessionByHod);
 attendanceRouter.get("/session/:sessionId/present-students", validate(SessionSchema, "params"), allowOnly("TEACHER", "HOD"), presentStudents);
 attendanceRouter.get("/session/:sessionId/absent-students", validate(SessionSchema, "params"), allowOnly("TEACHER", "HOD"), absentStudents);
+attendanceRouter.get("/session/:sessionId/review", validate(SessionSchema, "params"), validate(reviewQuerySchema, "query"), allowOnly("TEACHER", "HOD"), review);
+attendanceRouter.get("/session/:sessionId/live", validate(SessionSchema, "params"), allowOnly("TEACHER", "HOD"), live);
 
 //delete methods
 

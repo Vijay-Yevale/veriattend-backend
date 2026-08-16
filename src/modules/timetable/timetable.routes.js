@@ -1,4 +1,4 @@
-// timetable.router.js
+
 const express = require("express");
 const {
   create,
@@ -34,9 +34,7 @@ timetableRouter.post(
   create
 );
 
-// ── Class ──────────────────────────────────────────────────
 
-// Logged-in student's own class timetable — ?day=, ?today=
 timetableRouter.get(
   "/class",
   validate(timetableQuerySchema, "query"),
@@ -44,19 +42,14 @@ timetableRouter.get(
   getMyClass
 );
 
-// Logged-in student's own class active slot.
-// Must be registered before "/class/:classId" — otherwise Express matches
-// this path against that route first and reads "active" as the classId.
+
 timetableRouter.get(
   "/class/active",
   allowOnly("STUDENT"),
   getMyActiveClassSlot
 );
 
-// Get timetable for an explicit class — HOD, or a TEACHER who is either
-// that class's classTeacher or teaches a subject there (the actual check
-// lives in resolveClassAccess in the service; a teacher with neither gets
-// a 403, so this route doesn't hand out unrestricted class browsing).
+
 timetableRouter.get(
   "/class/:classId",
   validate(getTimetableByClassSchema, "params"),
@@ -73,7 +66,7 @@ timetableRouter.get(
   getActiveClassSlot
 );
 
-// ── Teacher ────────────────────────────────────────────────
+//  Teacher 
 
 // Logged-in teacher's own timetable — ?day=, ?today=
 timetableRouter.get(
@@ -99,7 +92,7 @@ timetableRouter.get(
   getSlots
 );
 
-// ── Mutations ──────────────────────────────────────────────
+
 
 // Update
 timetableRouter.patch(

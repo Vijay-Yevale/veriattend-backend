@@ -9,7 +9,6 @@ getDepartmentAnalytics
 } = require("./analytics.service");
 
 // Student Dashboard
-// GET /api/analytics/student/dashboard
 const getMyDashboard = catchAsync(async (req, res) => {
   const studentId = req.user._id;
 
@@ -39,7 +38,6 @@ const getStudentDashboardById = catchAsync(async (req, res) => {
 });
 
 // Teacher Class Analytics
-// GET /api/analytics/teacher/class/:classId
 const getClassAnalytics = catchAsync(async (req, res) => {
   const { classId } = req.params;
   const { subjectId } = req.query;
@@ -77,7 +75,7 @@ const getStudentSubjectDetailController = catchAsync(async (req, res) => {
 });
 
 // HOD Department Analytics
-// GET /api/analytics/department/:departmentId
+
 const getDepartmentAnalytic = catchAsync(async (req, res) => {
   const { departmentId } = req.params;
 

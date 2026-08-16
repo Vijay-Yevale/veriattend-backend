@@ -16,9 +16,9 @@ const {
 } = require("../modules/analytics/analytics.helper");
 
 
-// ─────────────────────────────────────────────────────────────
+
 // Process One Student
-// ─────────────────────────────────────────────────────────────
+
 
 async function processStudent(student) {
   const studentId = student._id;
@@ -66,9 +66,9 @@ const performanceScore = computePerformanceScore({
     performanceScore,
   });
 
-  // ----------------------------------------------------------
+
   // Subject Wise Performance
-  // ----------------------------------------------------------
+
 
   const academicMap = new Map(
     academicRecords.map((record) => [
@@ -86,9 +86,9 @@ const performanceScore = computePerformanceScore({
 
   const { weak, strong } = classifySubjects(subjectStats);
 
-  // ----------------------------------------------------------
+  
   // Save Risk Profile
-  // ----------------------------------------------------------
+
 
   await RiskProfile.findOneAndUpdate(
     { studentId },
@@ -124,9 +124,9 @@ const performanceScore = computePerformanceScore({
 }
 
 
-// ─────────────────────────────────────────────────────────────
+
 // Analytics Job
-// ─────────────────────────────────────────────────────────────
+
 
 async function runAnalyticsJob() {
   console.log(
@@ -183,13 +183,12 @@ async function runAnalyticsJob() {
 }
 
 
-// ─────────────────────────────────────────────────────────────
+
 // Schedule
-// ─────────────────────────────────────────────────────────────
+
 
 function scheduleAnalyticsJob() {
-  // Every 7 hours
-  cron.schedule("* */5 * * *", async () => {
+  cron.schedule("0 */5 * * *", async () => {
     try {
       await runAnalyticsJob();
     } catch (err) {
@@ -198,7 +197,7 @@ function scheduleAnalyticsJob() {
   });
 
   console.log(
-    "[AnalyticsJob] Scheduled — runs every 7 hours"
+    "[AnalyticsJob] Scheduled — runs every 5 hours"
   );
 }
 

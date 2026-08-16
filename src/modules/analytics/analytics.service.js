@@ -122,7 +122,7 @@ const getStudentDashboard = async (studentId) => {
 };
 
 //  TEACHER: class dashboard 
-// TEACHER / HOD / SUPER_ADMIN : Class Dashboard
+
 
 const getClassDashboard = async (classId, currentUser, subjectId = null) => {
 
@@ -235,9 +235,8 @@ const getClassDashboard = async (classId, currentUser, subjectId = null) => {
     };
   }
 
-  // ===========================
   // OVERALL CLASS DASHBOARD
-  // ===========================
+
   if (!subjectId) {
     const studentIds = students.map((student) => student._id);
 
@@ -264,9 +263,9 @@ const getClassDashboard = async (classId, currentUser, subjectId = null) => {
     };
   }
 
-  // ===========================
+ 
   // SUBJECT DASHBOARD
-  // ===========================
+  
   const [{ totalClasses, attendanceMap }, academicRecords] = await Promise.all([
     aggregateSubjectAttendanceForClass(classId, subjectId),
     AcademicRecord.find({ classId, subjectId }).lean(),

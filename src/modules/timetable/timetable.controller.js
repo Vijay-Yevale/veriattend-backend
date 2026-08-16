@@ -1,4 +1,4 @@
-// timetable.controller.js
+
 const {
   createTimetableSlot,
   getTimetableByClass,
@@ -11,12 +11,9 @@ const {
 const sendResponse = require("../../utils/response.util");
 const catchAsync = require("../../utils/catchAsync");
 
-// Defensive: works whether or not the validate middleware writes the
-// coerced boolean back onto req.query.
 const toBoolean = (value) => value === true || value === "true" || value === "1";
 
-// Shared shape every service call needs for access control —
-// pulled into one place instead of retyped in every controller.
+
 const buildRequester = (req) => ({
   id: req.user._id,
   role: req.user.role,

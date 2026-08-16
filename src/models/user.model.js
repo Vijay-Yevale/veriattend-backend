@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Future attendance security
+   
     deviceId: {
       type: String,
       default: null,

@@ -277,11 +277,11 @@ const getClassRosterForMarks = async (subjectId, classId, teacherId) => {
       studentId: student._id,
       userName: student.userName,
       PRN: student.PRN,
-      quizMarks: record ? record.quizMarks : [],
-      quizAverage: record ? avg(record.quizMarks) : null,
-      assignmentMarks: record ? record.assignmentMarks : [],
-      assignmentAverage: record ? avg(record.assignmentMarks) : null,
-      internalMarks: record ? record.internalMarks : null,
+      quizMarks: record?.quizMarks ?? [],
+assignmentMarks: record?.assignmentMarks ?? [],
+internalMarks: record?.internalMarks ?? null,
+quizAverage: avg(record?.quizMarks),
+assignmentAverage: avg(record?.assignmentMarks),
     };
   });
 };

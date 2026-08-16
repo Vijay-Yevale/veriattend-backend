@@ -1,4 +1,4 @@
-// timetable.service.js
+
 const Timetable = require("../../models/timetable.model");
 const User = require("../../models/user.model");
 const Subject = require("../../models/subject.model");
@@ -61,11 +61,7 @@ const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDa
   return buildTimetableSlot(populatedSlot);
 };
 
-// Confines a STUDENT to their own class. A TEACHER gets in if they either
-// teach a subject in that class (TeacherSubject) OR are that class's
-// classTeacher (homeroom/mentor) — a class teacher needs the full class
-// schedule, not just their own slot in it. HOD is scoped to their own
-// department.
+
 const resolveClassAccess = async ({ classId, requester }) => {
   if (!requester) return classId;
 
@@ -185,9 +181,7 @@ const getTimetableByClass = async ({ classId, day, today, requester }) => {
     .populate("classId", "_id className")
     .lean();
 
-  // No slots is a normal outcome (e.g. nothing scheduled for the selected
-  // day), not an error — return [] with 200 so the frontend can render an
-  // empty state instead of catching an exception.
+
   return timetable.map((slot) =>
     buildTimetableSlot(slot, { includeTodayStatus: !!today })
   );

@@ -52,6 +52,11 @@ const attendanceRecordSchema = new mongoose.Schema(
       ],
     },
 
+    distance: {
+      type: Number,
+      default: null,
+    },
+
     markedBy: {
       type: String,
       enum: ["SELF", "TEACHER"],

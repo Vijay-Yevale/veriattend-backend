@@ -12,6 +12,7 @@ const attendanceRouter = require("./src/modules/attendance/attendance.routes.js"
 const academicRouter = require("./src/modules/academicRecord/academicRecord.routes.js");
 const analyticsRouter = require("./src/modules/analytics/analytics.routes.js");
 const dataRouter = require("./src/modules/data/data.routes.js");
+const faceRouter = require("./src/modules/face/face.routes.js");
 const errorHandler = require("./src/middleware/errorHandler.js");
 
 //  jobs 
@@ -20,7 +21,7 @@ const { scheduleAnalyticsJob } = require("./src/jobs/analytics.job.js");
 const { scheduleTeacherNotifyJob } = require("./src/jobs/teacherNotify.job.js");
 
 scheduleAnalyticsJob();
-scheduleTeacherNotifyJob();
+// scheduleTeacherNotifyJob();
 
 //  rate limiters
 const globalLimiter = rateLimit({
@@ -53,8 +54,7 @@ const sanitizeInput = (obj) => {
 app.use(helmet());
 app.use(cors());
 
-// Body parsers must run BEFORE sanitizeInput, or req.body is still
-// undefined when sanitizeInput checks it — nothing gets sanitized.
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -75,6 +75,7 @@ app.use("/api/attendance", attendanceRouter);
 app.use("/api/academics", academicRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/data", dataRouter);
+app.use("/api/face",faceRouter);
 
 //  error handler 
 app.use(errorHandler);

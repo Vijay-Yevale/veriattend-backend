@@ -1,6 +1,6 @@
 const AcademicRecord = require("../../models/academicRecord.model");
 const User = require("../../models/user.model");
-const TeacherSubject = require("../../models/teachersubject.model");
+const TeacherSubject = require("../../models/teacherSubject.model");
 const AppError = require("../../utils/AppError");
 
 //  internal helper

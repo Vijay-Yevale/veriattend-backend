@@ -3,7 +3,7 @@
 const mongoose = require("mongoose");
 const Session = require("../../models/attendancesession.model");
 const Record = require("../../models/attendanceRecord.model");
-const TeacherSubject = require("../../models/teachersubject.model");
+const TeacherSubject = require("../../models/teacherSubject.model");
 
 const QUIZ_MAX = 10;
 const ASSIGNMENT_MAX = 25;

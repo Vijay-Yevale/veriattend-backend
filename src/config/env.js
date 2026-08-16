@@ -12,9 +12,8 @@ const PORT = process.env.PORT || 5000;
 const ML_SERVICE_URL =
   process.env.ML_SERVICE_URL || "http://localhost:5001";
 
-
-// Required environment variables
-
+const APP_TIMEZONE =
+  process.env.APP_TIMEZONE || "Asia/Kolkata";
 
 if (!MONGO_URI) {
   throw new Error("MONGO_URI is missing in .env");
@@ -36,4 +35,5 @@ module.exports = {
   ATTENDANCE_VERIFICATION_SECRET,
   PORT,
   ML_SERVICE_URL,
+  APP_TIMEZONE,
 };

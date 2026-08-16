@@ -1,33 +1,54 @@
-const WEEK_DAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
 const getCurrentDayAndTime = () => {
   const now = new Date();
-  const weekDay = WEEK_DAYS[now.getDay()];
-  const time = `${String(now.getHours()).padStart(2, "0")}:${String(
-    now.getMinutes()
-  ).padStart(2, "0")}`;
-  return { weekDay, time };
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+  const parts = formatter.formatToParts(now);
+  const values = {};
+
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+
+  return {
+    weekDay: values.weekday,
+    time: `${values.hour}:${values.minute}`,
+  };
+};
+
+const isTimeInSlot = (startTime, endTime, currentTime) => {
+  if (startTime <= endTime) {
+    return startTime <= currentTime && currentTime < endTime;
+  }
+
+  return currentTime >= startTime || currentTime < endTime;
 };
 
 const attachTodayStatus = (slot, currentDay, currentTime) => {
   const isToday = slot.weekDay === currentDay;
+
+  const isCurrent = isToday
+    ? isTimeInSlot(slot.startTime, slot.endTime, currentTime)
+    : false;
+
   return {
     ...slot,
-    isCompleted: isToday ? slot.endTime <= currentTime : false,
-    isCurrent: isToday
-      ? slot.startTime <= currentTime && slot.endTime > currentTime
-      : false,
-    isUpcoming: isToday ? slot.startTime > currentTime : false,
+    isCompleted: isToday && !isCurrent && slot.endTime <= currentTime,
+    isCurrent,
+    isUpcoming: isToday && !isCurrent && slot.startTime > currentTime,
   };
 };
+
 const buildTimetableSlot = (slot, { includeTodayStatus = false } = {}) => {
   const base = {
     timetableId: slot._id.toString(),
@@ -50,11 +71,26 @@ const buildTimetableSlot = (slot, { includeTodayStatus = false } = {}) => {
     endTime: slot.endTime,
     isActive: slot.isActive,
   };
-  if (!includeTodayStatus) return base;
-  const { weekDay: currentDay, time: currentTime } = getCurrentDayAndTime();
-  return attachTodayStatus(base, currentDay, currentTime);
+
+  if (!includeTodayStatus) {
+    return base;
+  }
+
+  const {
+    weekDay: currentDay,
+    time: currentTime,
+  } = getCurrentDayAndTime();
+
+  return attachTodayStatus(
+    base,
+    currentDay,
+    currentTime
+  );
 };
+
 module.exports = {
-  buildTimetableSlot,
+  APP_TIMEZONE,
   getCurrentDayAndTime,
+  isTimeInSlot,
+  buildTimetableSlot,
 };

@@ -5,7 +5,16 @@ const AppError = require("../../utils/AppError");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Class = require("../../models/class.model");
-const { getActiveSlot, getActiveSlotByClass } = require("../timetable/timetable.service");
+const {
+  getActiveSlot,
+  getActiveSlotByClass,
+} = require("../timetable/timetable.service");
+
+const {
+  getCurrentDayAndTime,
+  isTimeInSlot,
+} = require("../timetable/timetable.helper");
+
 const { getTodayRange } = require("../../utils/dateRange");
 const { getIO } = require("../../socket/socket");
 const faceService = require("../../modules/face/face.service"); 
@@ -524,47 +533,79 @@ const endSession = async ({ teacher, sessionId }) => {
 };
 
 const closedExpiredSession = async () => {
-  const now = new Date();
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const currentDay = days[now.getDay()];
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const {
+    weekDay: currentDay,
+    time: currentTime,
+  } = getCurrentDayAndTime();
 
-  const activeSessions = await Session.find({ isActive: true }).populate("timetableSlotId");
+  const activeSessions = await Session.find({
+    isActive: true,
+  }).populate("timetableSlotId");
 
   const expiredIds = activeSessions
-    .filter(
-      (s) =>
-        s.timetableSlotId &&
-        s.timetableSlotId.weekDay === currentDay &&
-        s.timetableSlotId.endTime < currentTime
-    )
-    .map((s) => s._id);
+    .filter((session) => {
+      const slot = session.timetableSlotId;
+
+      if (!slot) {
+        return false;
+      }
+
+      if (slot.weekDay !== currentDay) {
+        return false;
+      }
+
+      return (
+        slot.endTime <= currentTime &&
+        !isTimeInSlot(
+          slot.startTime,
+          slot.endTime,
+          currentTime
+        )
+      );
+    })
+    .map((session) => session._id);
 
   if (!expiredIds.length) {
-    return { closed: 0 };
+    return {
+      closed: 0,
+    };
   }
 
   await Session.updateMany(
-    { _id: { $in: expiredIds } },
-    { $set: { isActive: false } }
+    {
+      _id: {
+        $in: expiredIds,
+      },
+    },
+    {
+      $set: {
+        isActive: false,
+      },
+    }
   );
 
   expiredIds.forEach((id) => {
     stopQrRotation(id);
 
     try {
-      getIO().to(`session:${id}`).emit("SESSION_ENDED", {
-        sessionId: id.toString(),
-        reason: "EXPIRED",
-      });
+      getIO()
+        .to(`session:${id}`)
+        .emit("SESSION_ENDED", {
+          sessionId: id.toString(),
+          reason: "EXPIRED",
+        });
     } catch (err) {
-      console.error("SESSION_ENDED emit failed:", err.message);
+      console.error(
+        "SESSION_ENDED emit failed:",
+        err.message
+      );
     }
   });
 
-  return { closed: expiredIds.length };
+  return {
+    closed: expiredIds.length,
+  };
 };
-
 // MANUAL ATTENDANCE
 
 const manualAttendance = async ({ teacher, sessionId, studentIds, reason }) => {

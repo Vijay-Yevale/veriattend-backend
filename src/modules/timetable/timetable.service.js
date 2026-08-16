@@ -5,8 +5,12 @@ const Subject = require("../../models/subject.model");
 const Class = require("../../models/class.model");
 const TeacherSubject = require("../../models/teacherSubject.model");
 const AppError = require("../../utils/AppError");
-const { buildTimetableSlot, getCurrentDayAndTime } = require("./timetable.helper");
 
+const {
+  buildTimetableSlot,
+  getCurrentDayAndTime,
+  isTimeInSlot,
+} = require("./timetable.helper");
 const createTimetableSlot = async ({ teacherId, subjectId, classId, room, weekDay, startTime, endTime }) => {
 
   const teacher = await User.findById(teacherId);
@@ -210,16 +214,14 @@ const getTimetableByTeacher = async ({ teacherId, day, today, requester }) => {
 };
 
 const getActiveSlot = async (teacherId) => {
-  const now = new Date();
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const currentDay = days[now.getDay()];
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const {
+    weekDay: currentDay,
+    time: currentTime,
+  } = getCurrentDayAndTime();
 
-  const slot = await Timetable.findOne({
+  const slots = await Timetable.find({
     teacherId,
     weekDay: currentDay,
-    startTime: { $lte: currentTime },
-    endTime: { $gte: currentTime },
     isActive: true,
   })
     .populate("teacherId", "_id userName")
@@ -227,37 +229,38 @@ const getActiveSlot = async (teacherId) => {
     .populate("classId", "_id className")
     .lean();
 
-   if (!slot) {
+  const activeSlot = slots.find((slot) =>
+    isTimeInSlot(
+      slot.startTime,
+      slot.endTime,
+      currentTime
+    )
+  );
+
+  if (!activeSlot) {
     return null;
   }
 
-  return buildTimetableSlot(slot);
+  return buildTimetableSlot(activeSlot);
 };
 
-const getActiveSlotByClass = async ({ classId, requester }) => {
-  const resolvedClassId = await resolveClassAccess({ classId, requester });
+const getActiveSlotByClass = async ({
+  classId,
+  requester,
+}) => {
+  const resolvedClassId = await resolveClassAccess({
+    classId,
+    requester,
+  });
 
-  const now = new Date();
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
+  const {
+    weekDay: currentDay,
+    time: currentTime,
+  } = getCurrentDayAndTime();
 
-  const currentDay = days[now.getDay()];
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
-    now.getMinutes()
-  ).padStart(2, "0")}`;
-
-  const slot = await Timetable.findOne({
+  const slots = await Timetable.find({
     classId: resolvedClassId,
     weekDay: currentDay,
-    startTime: { $lte: currentTime },
-    endTime: { $gte: currentTime },
     isActive: true,
   })
     .populate("teacherId", "_id userName")
@@ -265,13 +268,20 @@ const getActiveSlotByClass = async ({ classId, requester }) => {
     .populate("classId", "_id className")
     .lean();
 
-  if (!slot) {
+  const activeSlot = slots.find((slot) =>
+    isTimeInSlot(
+      slot.startTime,
+      slot.endTime,
+      currentTime
+    )
+  );
+
+  if (!activeSlot) {
     return null;
   }
 
-  return buildTimetableSlot(slot);
+  return buildTimetableSlot(activeSlot);
 };
-
 const updateTimetableSlot = async (slotId, updates) => {
   //  Get current slot
   const slot = await Timetable.findById(slotId);
